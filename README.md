@@ -7,12 +7,12 @@
 
 ## 实现进度
 - [ ] 数据集下载脚本  
-- [x] 数据集解压脚本 Helium-327-SegBrats/utils/unTarfile.py
-- [x] 数据集划分脚本 Helium-327-SegBrats/utils/splitDataList.py
-- [x] 数据集加载脚本 Helium-327-SegBrats/SegBrats3d/readDatasets
+- [x] 数据集解压脚本 [./utils/unTarfile.py]
+- [x] 数据集划分脚本 [./utils/splitDataList.py]
+- [x] 数据集加载脚本 [./readDatasets]
 
-- [x] 训练脚本 Helium-327-SegBrats/train.py
-- [x] 滑窗推理脚本 Helium-327-SegBrats/inference.py
+- [x] 训练脚本 [./train.py]
+- [x] 滑窗推理脚本 [./inference.py]
 
 
 ## Running
