@@ -2,6 +2,7 @@
 *.nii.gz
 *.pth
 *.csv
+__pycache__/
 
 brats21_local*
 runs/

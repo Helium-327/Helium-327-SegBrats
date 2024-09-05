@@ -106,7 +106,7 @@ def val_one_epoch(model, Metric, val_loader, loss_function, epoch, device):
     
     with torch.no_grad(): # 关闭梯度计算
         with autocast(device_type='cuda'):
-            val_loader = tqdm(val_loader, desc=f"== Validating ==", leave=False)
+            val_loader = tqdm(val_loader, desc=f"# Validating", leave=False)
             for data in val_loader:
                 vimage, mask = data[0].to(device), data[1].to(device)                
                 with autocast(device_type='cuda'):

@@ -35,7 +35,7 @@ ln -s <数据集目录> ./brats21
 - 全量训练
 
 ```shell
-    python BraTS_worflow/train.py --bs 2 --epochs 100 --lr 0.0005 --train_mode full
+    python train.py --bs 4 --train_mode full --valCropSize 128,128,128 --tb True --epochs 400
 
 ```
 
