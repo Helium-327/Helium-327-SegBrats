@@ -4,7 +4,8 @@
 *.csv
 __pycache__/
 
-brats21_local*
+brats21_local/
+brats21/
 runs/
 results/
 checkpoints/
