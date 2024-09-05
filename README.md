@@ -5,29 +5,22 @@
 
 ---
 
-**训练流程**
+## 实现进度
+- [ ] 数据集下载脚本  
+- [x] 数据集解压脚本 Helium-327-SegBrats/utils/unTarfile.py
+- [x] 数据集划分脚本 Helium-327-SegBrats/utils/splitDataList.py
+- [x] 数据集加载脚本 Helium-327-SegBrats/SegBrats3d/readDatasets
 
-- [ ] 准备数据集
-- [ ] 修改参数
-- [ ] 训练模型
-- [ ] 评估模型
-- [ ] 生成结果
-
-**测试流程**
-
-- [ ] 准备数据集
-- [ ] 修改参数
-- [ ] 测试模型
-- [ ] 评估模型
-- [ ] 生成结果
+- [x] 训练脚本 Helium-327-SegBrats/train.py
+- [x] 滑窗推理脚本 Helium-327-SegBrats/inference.py
 
 
 ## Running
 
 ```bash
-git clone https://github.com/Helium-327/BraTS_segmentation.git
+git clone https://github.com/Helium-327/Helium-327-SegBrats.git
 
-cd BraTS_segmentation
+cd Helium-327-SegBrats
 
 pip install -r requirements.txt
 
@@ -36,15 +29,21 @@ pip install -r requirements.txt
 
 ## TRAIN
 
+- 数据集目录软链接映射
+
+```shell
+ln -s <数据集目录> ./brats21
+```
+
 - 全量训练
 
-```bash
+```shell
     python BraTS_worflow/train.py --bs 2 --epochs 100 --lr 0.0005 --train_mode full
 
 ```
 
 - 少量训练
 
-```bash
+```shell
     python BraTS_worflow/train.py --bs 2 --epochs 100 --lr 0.0005 --train_mode local --local_train_length <训练集长度> --local_val_length <验证集长度>
 ```
