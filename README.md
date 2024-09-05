@@ -1,4 +1,7 @@
-# Workflow for 3D BraTS segmentation
+# SegBrats
+
+基于BraTS数据集的分割方案
+
 
 ---
 
