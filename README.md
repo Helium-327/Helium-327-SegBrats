@@ -7,12 +7,12 @@
 
 ## 实现进度
 - [ ] 数据集下载脚本  
-- [x] 数据集解压脚本 [./utils/unTarfile.py]
-- [x] 数据集划分脚本 [./utils/splitDataList.py]
-- [x] 数据集加载脚本 [./readDatasets]
+- [x] 数据集解压脚本 [./utils/unTarfile.py](./utils/unTarfile.py)
+- [x] 数据集划分脚本 [./utils/splitDataList.py](./utils/splitDataList.py)
+- [x] 数据集加载脚本 [./readDatasets](./readDatasets)
 
-- [x] 训练脚本 [./train.py]
-- [x] 滑窗推理脚本 [./inference.py]
+- [x] 训练脚本 [./train.py](./train.py)
+- [x] 滑窗推理脚本 [./inference.py](./inference.py)
 
 
 ## Running
@@ -25,9 +25,6 @@ cd Helium-327-SegBrats
 pip install -r requirements.txt
 
 ```
-
-
-## TRAIN
 
 - 数据集目录软链接映射
 
