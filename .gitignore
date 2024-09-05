@@ -1,0 +1,9 @@
+*.jpg
+*.nii.gz
+*.pth
+*.csv
+
+brats21_local*
+runs/
+results/
+checkpoints/
