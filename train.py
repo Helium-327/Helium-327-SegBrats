@@ -420,7 +420,7 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train args")
 
-    parser.add_argument("--data_root" , type=str, default="./brats21", help="data root")
+    parser.add_argument("--data_root" , type=str, default="/mnt/d/AI_Research/WS-HUB/WS-segBratsWorkflow/SegBrats3d/brats21_local", help="data root")
     parser.add_argument("--model", type=str, default="UNet_3D", help="model")
     parser.add_argument("--input_channels", type=int, default=4, help="input channels")
     parser.add_argument("--output_channels", type=int, default=4, help="output channels")
@@ -428,7 +428,7 @@ if __name__ == "__main__":
     
     parser.add_argument("--epochs", type=int, default=20, help="num_epochs")
     parser.add_argument("--nw", type=int, default=8, help="num_workers")
-    parser.add_argument("--bs", type=int, default=4, help="batch_size")
+    parser.add_argument("--bs", type=int, default=2, help="batch_size")
     parser.add_argument("--ts", type=float, default=0.8, help="train_split")
     parser.add_argument("--vs", type=float, default=0.1, help="val_split")
     parser.add_argument("--seed", type=int, default=42, help="random_seed")
@@ -444,8 +444,8 @@ if __name__ == "__main__":
     parser.add_argument("--scheduler_patience", type=int, default=3, help="scheduler patience")
     parser.add_argument("--scheduler_factor", type=float, default=0.9, help="scheduler factor")
     parser.add_argument("--train_mode", type=str, default="local", help="loading data scale")
-    parser.add_argument("--local_train_length", type=int, default=1000, help="train length")
-    parser.add_argument("--local_val_length", type=int, default=125, help="val length")
+    parser.add_argument("--local_train_length", type=int, default=100, help="train length")
+    parser.add_argument("--local_val_length", type=int, default=12, help="val length")
     parser.add_argument("--interval", type=int, default=1, help="checkpoint interval")
     parser.add_argument("--resume", type=str, default=None, help="resume training from checkpoint")
     parser.add_argument("--results_path", type=str, default="./results", help="result path")

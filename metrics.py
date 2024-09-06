@@ -312,26 +312,27 @@ class EvaluationMetrics:
 
 if __name__ == '__main__':
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    local_root = "./data_brats"
+
+    local_root = "/mnt/d/AI_Research/WS-HUB/WS-segBratsWorkflow/SegBrats3d/brats21_local"
     data_dir = os.path.join(local_root, "BraTS2021_00621")
 
-    data_size = (144, 224, 224)
     # transform = RandomCrop3D(target_size)
-    brats = BraTS21_3d(data_dir, data_size=data_size)
+    brats = BraTS21_3d('/mnt/d/AI_Research/WS-HUB/WS-segBratsWorkflow/SegBrats3d/brats21_local/val.csv')
 
     data, label = brats.load_image(data_dir)
-    data = data[None,...].to(device)
-    label = label[None,...].to(device)
+    data = data[None,:,:144,...].to(device)
+    label = label[None,:144,...].to(device)
     model = UNet_3D(in_channels=4, num_classes=4)
     # print(model)
     model.to(device)
 
 
+
     y_pred = model(data)
     y_mask = label
-    metrics_list = np.zeros((4, 3))
+    metrics_list = np.zeros((7, 4))
     metrics = EvaluationMetrics()
-    metrics_list = metrics.update(y_pred, y_mask, metrics_list)
+    metrics_list = metrics.update(y_pred, y_mask)
     # metrics.printAll(y_pred, y_mask, metrics_list)
     print(metrics_list)
         

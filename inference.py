@@ -8,6 +8,8 @@ Author:            @ Mr_Robot
 Current State:     #TODO:
 '''
 import os
+import argparse
+import time
 import torch
 from tabulate import tabulate
 import numpy as np
@@ -49,6 +51,8 @@ def inference(test_loader, model, Metricer, output_path, device, affine, window_
     """
     Metrics_list = np.zeros((7, 4))
     
+    test_loader = tqdm(test_loader, desc='Test', leave=False)
+
     for i, data in enumerate(test_loader):
         vimage, vmask = data[0], data[1]
         # print(vmask.shape, vmask.shape)
@@ -151,35 +155,27 @@ def slide_window_pred(model, test_data, device, window_size, stride_size):
 
     return pred_mask
 
-if __name__ == '__main__':
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    output_path = r"/mnt/d/AI_Research/WS-HUB/WS-BraTS/BraTS_segmentation/results/outputs"
-    checkpoint_path = r"/mnt/g/BraTS实验结果/2024-8-27/checkpoints/BraTS21_3d_2024-08-25-16-07-51_364_0.8973.pth"
-    test_csv = "/mnt/d/AI_Research/WS-HUB/WS-BraTS/BraTS_segmentation/brats21_local/val.csv"
-
+def main(args):
+    now = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
     affine = np.array([[ -1.,  -0.,  -0.,   0.],
-                    [ -0.,  -1.,  -0., 239.],
-                    [  0.,   0.,   1.,   0.],
-                    [  0.,   0.,   0.,   1.]])
+                [ -0.,  -1.,  -0., 239.],
+                [  0.,   0.,   1.,   0.],
+                [  0.,   0.,   0.,   1.]])
     
-
+    output_path = os.path.join(args.output_path, f"{now}")
     if not os.path.exists(output_path):
-        print("output path not exists, create it")
+        print("output path not exists, created it")
         os.makedirs(output_path)
-    
 
     model = UNet_3D(in_channels=4, num_classes=4)
-    model.to(device)
-    
+    model.to(args.device)
     Metricer = EvaluationMetrics()
-    # loss_function = LossFunctions()
-
+    
     TransMethods_val   = data_transform(transform=Compose([RandomCrop3D(size=(154, 224, 224)),    # 随机裁剪
-                                                        # tioRandonCrop3d(size=CropSize),
-                                                         Normalize(mean=(0.114, 0.090, 0.170, 0.096), std=(0.199, 0.151, 0.282, 0.174)),   # 标准化
                                                          tioRandomFlip3d(),   
+                                                         Normalize(mean=(0.114, 0.090, 0.170, 0.096), std=(0.199, 0.151, 0.282, 0.174)),   # 标准化
+                                                        # tioRandonCrop3d(size=CropSize),
                                                         # tioRandomAffine(),          # 随机旋转
-                                                        
                                                         # tioRandomFlip3d(),                 # 随机翻转
                                                         # tioRandomElasticDeformation3d(),
                                                         # tioZNormalization(),               # 归一化
@@ -187,21 +183,36 @@ if __name__ == '__main__':
                                                         # tioRandomGamma3d()    
                                         ]))
 
-    test_dataset  = BraTS21_3d(test_csv, 
+    test_dataset  = BraTS21_3d(args.test_csv, 
                             transform=TransMethods_val, 
                             local_train=True, 
                             length=5)
 
     test_loader = DataLoader(dataset=test_dataset, 
-                            batch_size=1, 
-                            num_workers=0, 
+                            batch_size=args.bs, 
+                            num_workers=8, 
                             shuffle=False)
     
 
     optimizer = RMSprop(model.parameters(), lr=1e-3, alpha=0.9, eps=1e-8)
     scaler = GradScaler()
 
-
-    model, optimizer, scaler, start_epoch, best_val_loss = load_checkpoint(model, optimizer, scaler, checkpoint_path)
+    model, optimizer, scaler, start_epoch, best_val_loss = load_checkpoint(model, optimizer, scaler, args.checkpoint_path)
     # print(model)
-    inference(test_loader, model, Metricer, output_path, device, affine)
+    inference(test_loader, model, Metricer, output_path, args.device, affine)
+
+
+if __name__ == '__main__':
+
+    parser = argparse.ArgumentParser(description="Train args")
+    parser.add_argument("--bs", type=int, default=1)
+    parser.add_argument("--device", type=str, default=torch.device('cuda' if torch.cuda.is_available() else 'cpu'), help="device for training")
+    parser.add_argument("--output_path", type=str, default="/mnt/g/BraTS实验结果/outputs", help="output path for saving checkpoints and logs")
+    parser.add_argument("--checkpoint_path", type=str, default="/mnt/g/BraTS21_3d_2024-09-05-21-56-53_264_0.9139.pth", help="loading checkpoint path")
+    parser.add_argument("--test_csv", type=str, default="/mnt/d/AI_Research/WS-HUB/WS-BraTS/BraTS_segmentation/brats21_local/val.csv", help="test csv path")
+    parser.add_argument("--in_channel, type=int", default=4)
+
+    args = parser.parse_args()
+
+    main(args)
+
