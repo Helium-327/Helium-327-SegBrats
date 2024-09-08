@@ -427,7 +427,7 @@ if __name__ == "__main__":
     parser.add_argument("--ckpt_path", type=str, default="./checkpoints", help="checkpoint root")
     
     parser.add_argument("--epochs", type=int, default=20, help="num_epochs")
-    parser.add_argument("--nw", type=int, default=8, help="num_workers")
+    parser.add_argument("--nw", type=int, default=4, help="num_workers")
     parser.add_argument("--bs", type=int, default=2, help="batch_size")
     parser.add_argument("--ts", type=float, default=0.8, help="train_split")
     parser.add_argument("--vs", type=float, default=0.1, help="val_split")
