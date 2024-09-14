@@ -3,9 +3,9 @@ import torch.nn as nn
 import torch
 
         
-class UNet_3D(nn.Module):
+class UNet3D(nn.Module):
     def __init__(self, in_channels, num_classes):
-        super(UNet_3D, self).__init__()
+        super(UNet3D, self).__init__()
         # self.ker_init = nn.init.he_normal_
         
         self.maxPooling = nn.MaxPool3d(kernel_size=2, stride=2)
@@ -127,6 +127,7 @@ class UNet_3D(nn.Module):
         
         self.ConvOutput = nn.Conv3d(32, num_classes, kernel_size=1)
         self.softmax = nn.Softmax(dim=1)
+        self.initialize_weights(init_type='kaiming_normal')
         
         
     def forward(self, x):
@@ -151,20 +152,47 @@ class UNet_3D(nn.Module):
         up7_cat_down1 = torch.cat([up7, input_layer], dim=1) # [32 x 128 x 128, 32 x 128 x 128] ----> 64 x 128 x 128
         up8 = self.Conv9(up7_cat_down1) # 32 x 128 x 128
         output = self.ConvOutput(up8) # num_class x 128 x 128
-        return self.softmax(output)        
-
-def initialize_weights(model,  init_gain=0.02):
-    for m in model.modules():
-        if isinstance(m, nn.Conv3d):
-            nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
-        elif isinstance(m, nn.BatchNorm3d):
-            nn.init.constant_(m.weight, 1)
-            nn.init.constant_(m.bias, 0)
-        elif isinstance(m, nn.Linear):
-            nn.init.normal_(m.weight, 0, init_gain)
-            nn.init.constant_(m.bias, 0)
+        out = self.softmax(output)
+        return out     
 
 
+    def initialize_weights(self, init_type='normal', activation='relu', init_gain=0.02, always_init=True):
+        for m in self.modules():
+            if isinstance(m, (nn.Conv3d, nn.ConvTranspose3d)):
+                if init_type == 'kaiming_normal':
+                    if isinstance(m, nn.ConvTranspose3d):
+                        nn.init.kaiming_normal_(m.weight, mode='fan_in', nonlinearity=activation)  # `fan_in` for ConvTranspose3d
+                    else:
+                        nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity=activation)  # `fan_out` for Conv3d
+                elif init_type == 'xavier_normal':
+                    nn.init.xavier_normal_(m.weight)
+                else:
+                    nn.init.normal_(m.weight, 0, init_gain)
+                
+                if always_init or not (init_type in ['kaiming_normal', 'xavier_normal']):
+                    if m.bias is not None:
+                        nn.init.constant_(m.bias, 0)
+
+            elif isinstance(m, nn.BatchNorm3d):
+                if always_init or init_type in ['kaiming_normal', 'xavier_normal']:
+                    nn.init.constant_(m.weight, 1)
+                    nn.init.constant_(m.bias, 0)
+
+            elif isinstance(m, nn.Linear):
+                if init_type == 'kaiming_normal':
+                    if isinstance(m, nn.ConvTranspose3d):
+                        nn.init.kaiming_normal_(m.weight, mode='fan_in', nonlinearity=activation)
+                    else:
+                        nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity=activation)
+                elif init_type == 'xavier_normal':
+                    nn.init.xavier_normal_(m.weight)
+                else:
+                    nn.init.normal_(m.weight, 0, init_gain)
+                    
+                if always_init:
+                    if m.bias is not None:
+                        nn.init.constant_(m.bias, 0)
+                        
 if __name__ == "__main__":
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -173,7 +201,7 @@ if __name__ == "__main__":
     sample_3d = np.random.rand(1, 4, 144, 128, 128)
     label  = np.randint(0, 3, (1, 144, 128, 128))
     sample.shape
-    model = UNet_3D(in_channels=4, num_classes=3)
+    model = UNet3D(in_channels=4, num_classes=3)
     # print(model)
     model.to(device)
 

@@ -28,7 +28,8 @@ from utils.writinglog import writeTraininglog
 from utils.splitDataList import DataSpliter
 
 ## 模型类
-from nets.unet3d import UNet_3D, initialize_weights
+from nets.initialize_weights import initialize_weights
+from nets.unet3d.unet3d_90M import UNet3D
 from metrics import EvaluationMetrics
 from utils.utils_ckpt import save_checkpoint, load_checkpoint
 
@@ -263,11 +264,12 @@ def main(args):
     start_epoch = 0
     best_val_loss = float('inf')
     if args.model == 'UNet_3D':       
-        model = UNet_3D(4, 4)
+        model = UNet3D(4, 4)
+        
     # elif args.model == 'UNet_2D':
     #     model = UNet_2D(4, 4)
     
-    initialize_weights(model)
+    # initialize_weights(model)
     model.to(args.device)
 
     # FIXME: 实现断点训练
@@ -432,7 +434,7 @@ if __name__ == "__main__":
     parser.add_argument("--ts", type=float, default=0.8, help="train_split")
     parser.add_argument("--vs", type=float, default=0.1, help="val_split")
     parser.add_argument("--seed", type=int, default=42, help="random_seed")
-    parser.add_argument("--lr", type=float, default=0.01, help="learning rate")
+    parser.add_argument("--lr", type=float, default=0.001, help="learning rate")
     parser.add_argument("--wd", type=float, default=1e-5, help="weight decay")
     
     parser.add_argument("--trainCropSize", type=lambda x: tuple(map(int, x.split(','))), default=(128, 128, 128), help="crop size")

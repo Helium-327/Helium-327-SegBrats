@@ -19,7 +19,7 @@ from torch.optim import RMSprop
 from torch.amp import GradScaler, autocast
 
 from utils.writinglog import writeTraininglog
-from nets.unet3d import UNet_3D
+from nets.unet3d_ import UNet_3D
 from metrics import EvaluationMetrics
 from loss_function import DiceLoss, CELoss
 from transforms import data_transform, Compose, RandomCrop3D, Normalize, tioRandomFlip3d

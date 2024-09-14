@@ -24,7 +24,7 @@ from torch.amp import GradScaler, autocast
 
 # 加载本地模块
 from readDatasets.BraTS import BraTS21_3d
-from nets.unet3d import UNet_3D
+from nets.unet3d_ import UNet3D
 # from loss_function import DiceLoss, CELoss
 from utils.datasets import split_datasets    # 这个导入怎么导的？
 from metrics import EvaluationMetrics

@@ -16,7 +16,7 @@ import os
 import numpy as np
 from torch.nn import functional as F
 from tabulate import tabulate
-from nets.unet3d import UNet_3D 
+from nets.unet3d_ import UNet3D 
 from readDatasets.BraTS import BraTS21_3d
 
 class EvaluationMetrics:
@@ -322,7 +322,7 @@ if __name__ == '__main__':
     data, label = brats.load_image(data_dir)
     data = data[None,...].to(device)
     label = label[None,...].to(device)
-    model = UNet_3D(in_channels=4, num_classes=4)
+    model = UNet3D(in_channels=4, num_classes=4)
     # print(model)
     model.to(device)
 
