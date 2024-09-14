@@ -432,7 +432,7 @@ if __name__ == "__main__":
     parser.add_argument("--ts", type=float, default=0.8, help="train_split")
     parser.add_argument("--vs", type=float, default=0.1, help="val_split")
     parser.add_argument("--seed", type=int, default=42, help="random_seed")
-    parser.add_argument("--lr", type=float, default=1e-4, help="learning rate")
+    parser.add_argument("--lr", type=float, default=0.01, help="learning rate")
     parser.add_argument("--wd", type=float, default=1e-5, help="weight decay")
     
     parser.add_argument("--trainCropSize", type=lambda x: tuple(map(int, x.split(','))), default=(128, 128, 128), help="crop size")
