@@ -37,7 +37,7 @@ class UNet3D(nn.Module):
 
         self.MaxPooling3d = nn.MaxPool3d(kernel_size=2, stride=2)
         self.softmax = nn.Softmax(dim=1)
-        self.initialize_weights(init_type="kaiming_normal", activation="relu")
+        # self.initialize_weights(init_type="kaiming_normal", activation="relu")
 
     def forward(self, x):
         down1_out = self.down1(x)                                               # 64 x 224 x 224 x 224

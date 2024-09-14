@@ -42,7 +42,7 @@ class DiceLoss:
         intersection = (y_pred * y_mask).sum(dim=(-3, -2, -1))
         union = y_pred.sum(dim=(-3, -2, -1)) + y_mask.sum(dim=(-3, -2, -1))
         dice = 2 * (intersection + self.smooth) / (union + self.smooth)
-        loss = tensor_one - dice.mean()  # 必须是tensor(1)
+        loss = tensor_one - dice.mean(dim=1)  # 必须是tensor(1)
         
         pred_list, mask_list = splitSubAreas(y_pred, y_mask)
         # 计算子区域的diceloss
@@ -52,13 +52,56 @@ class DiceLoss:
             dice_c = 2 * (intersection + self.smooth) / (union + self.smooth)
             loss_dict[sub_area] = tensor_one - dice_c.mean()
         
-        et_loss = loss_dict['ET']
-        tc_loss = loss_dict['TC']
-        wt_loss = loss_dict['WT']
+        et_loss = safe_loss(loss_dict['ET'])
+        tc_loss = safe_loss(loss_dict['TC'])
+        wt_loss = safe_loss(loss_dict['WT'])
+        mean_loss = safe_loss(sum(loss_dict.values()) / len(sub_areas))
+
+        return mean_loss, et_loss, tc_loss, wt_loss
+
+class FocalLoss:
+    def __init__(self, gamma=2, alpha=0.25):
+        self.gamma = gamma
+        self.alpha = alpha
+        self.sub_areas = ['ET', 'TC', 'WT']
+        self.labels = {
+            'BG': 0, 
+            'NCR' : 1,
+            'ED': 2,
+            'ET':3
+        }
+        self.num_classes = len(self.labels)
         
-
-        return loss, et_loss, tc_loss, wt_loss
-
+    def __call__(self, y_pred, y_mask):
+        """
+        FocalLoss
+        :param y_pred: 预测值 [batch, 4, D, W, H]
+        :param y_mask: 真实值 [batch, D, W, H]
+        """
+        loss_dict = {}
+        sub_areas = self.sub_areas
+        y_mask = F.one_hot(y_mask, num_classes=self.num_classes).permute(0, 4, 1, 2, 3).float()
+        
+        focal_loss = self.cal_focal_loss(y_pred, y_mask)
+        loss_dict['global'] = focal_loss
+        pred_list, mask_list = splitSubAreas(y_pred, y_mask)
+        
+        for sub_area, pred, mask in zip(sub_areas, pred_list, mask_list):
+            loss = self.cal_focal_loss(pred, mask)
+            loss_dict[sub_area] = loss 
+        
+        et_loss = safe_loss(loss_dict['ET'])
+        tc_loss = safe_loss(loss_dict['TC'])
+        wt_loss = safe_loss(loss_dict['WT'])
+        mean_loss = safe_loss(sum(loss_dict.values()) / len(sub_areas))
+        
+        return mean_loss, et_loss, tc_loss, wt_loss
+    
+    def cal_focal_loss(self, y_pred, y_mask):
+        cross_entropy = nn.CrossEntropyLoss(reduction="none")(y_pred, y_mask)
+        pt = torch.exp(-cross_entropy)
+        focal_loss = (self.alpha * ((1 - pt) ** self.gamma) * cross_entropy).mean()
+        return focal_loss
 
 class CELoss:
     def __init__(self, smooth=1e-5):
@@ -92,10 +135,10 @@ class CELoss:
             loss = CrossEntropyLoss()(pred, mask)
             loss_dict[sub_area] = loss
         
-        et_loss = loss_dict['ET']
-        tc_loss = loss_dict['TC']
-        wt_loss = loss_dict['WT']
-        mean_loss = sum(loss_dict.values()) / len(sub_areas)
+        et_loss = safe_loss(loss_dict['ET'])
+        tc_loss = safe_loss(loss_dict['TC'])
+        wt_loss = safe_loss(loss_dict['WT'])
+        mean_loss = safe_loss(sum(loss_dict.values()) / len(sub_areas))
         
         return mean_loss, et_loss, tc_loss, wt_loss        
 
@@ -117,7 +160,12 @@ def splitSubAreas(y_pred, y_mask):
     pred_list = [et_pred, tc_pred, wt_pred]
     mask_list = [et_mask, tc_mask, wt_mask]
     return pred_list, mask_list
-        
+    
+def safe_loss(loss): # FIXME:当损失为nan时无法训练
+    if loss is not None and not torch.isnan(loss):
+        return loss
+    else:
+        return torch.nan_to_num(loss, nan=0.1)
 
 if __name__ == '__main__':
     y_pred = torch.randn(1, 4, 144, 128, 128)
@@ -125,8 +173,11 @@ if __name__ == '__main__':
     y_mask = torch.randint(0, 4, (1, 144, 128, 128))
     diceLossFunc = DiceLoss()
     ceLossFunc = CELoss()
+    focallossFunc = FocalLoss()
 
     print(f"CELoss : {diceLossFunc(y_pred, y_mask)}")
     
     print(f"DiceLoss : {ceLossFunc(y_pred, y_mask)}")
+    
+    print(f"FocalLoss : {focallossFunc(y_pred, y_mask)}")
     

@@ -11,36 +11,27 @@ TODO:          1. 添加早停策略
 
 import os
 import time
-
 import torch
 import pandas as pd
 import argparse
-from torch.utils.data import DataLoader
 from tabulate import tabulate
 
-# 加载本地模块
-## 数据类
-# from Dataloader import data_loader
-# from utils.utils_datasets import split_datasets, create_load_datasets
-from readDatasets.BraTS import BraTS21_3d
-from transforms import data_transform, Compose, RandomCrop3D, Normalize, tioRandomNoise3d, tioRandomGamma3d, tioRandomFlip3d
-from utils.writinglog import writeTraininglog
-from utils.splitDataList import DataSpliter
-
-## 模型类
-from nets.initialize_weights import initialize_weights
-from nets.unet3d.unet3d_90M import UNet3D
-from metrics import EvaluationMetrics
-from utils.utils_ckpt import save_checkpoint, load_checkpoint
-
-## 训练
-from loss_function import DiceLoss, CELoss
-from train_and_val import train_one_epoch, val_one_epoch
+from torch.utils.data import DataLoader
+from torch.utils.tensorboard import SummaryWriter
 from torch.optim import Adam, SGD, RMSprop, AdamW
 from torch.optim.lr_scheduler import ReduceLROnPlateau, CosineAnnealingLR
 from torch.amp import GradScaler
 
-from torch.utils.tensorboard import SummaryWriter
+from readDatasets.BraTS import BraTS21_3d
+from transforms import data_transform, Compose, RandomCrop3D, Normalize, tioRandomNoise3d, tioRandomGamma3d, tioRandomFlip3d
+from utils.writinglog import writeTraininglog
+from utils.splitDataList import DataSpliter
+from utils.utils_ckpt import save_checkpoint, load_checkpoint
+from nets.unet3d.unet3d_90M import UNet3D
+from metrics import EvaluationMetrics
+
+from loss_function import DiceLoss, CELoss, FocalLoss
+from train_and_val import train_one_epoch, val_one_epoch
 
 os.environ["CUDA_LAUNCH_BLOCKING"] = '1'
 torch.backends.cudnn.benchmark = True
@@ -269,7 +260,7 @@ def main(args):
     # elif args.model == 'UNet_2D':
     #     model = UNet_2D(4, 4)
     
-    # initialize_weights(model)
+    model.initialize_weights(init_type="kaiming_normal", activation="relu")
     model.to(args.device)
 
     # FIXME: 实现断点训练
@@ -394,8 +385,10 @@ def main(args):
         loss_function = DiceLoss()
     elif args.loss == 'CELoss':
         loss_function = CELoss()
+    elif args.loss == 'FocalLoss':
+        loss_function = FocalLoss()
     else:
-        raise ValueError("loss must be 'DiceLoss' or 'CELoss'.")
+        raise ValueError("loss must be 'DiceLoss' or 'CELoss' or 'FocalLoss'.")
     
     # # 早停
     # if args.stop_patience:

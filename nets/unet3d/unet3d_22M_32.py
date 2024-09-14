@@ -111,9 +111,6 @@ class UNet3D(nn.Module):        # FIXME: 初始化之后损失异常
                         nn.init.constant_(m.bias, 0)
 
 
-
-    
-
 if __name__ == "__main__":
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 

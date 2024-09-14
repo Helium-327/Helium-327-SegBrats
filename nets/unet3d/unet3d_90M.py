@@ -43,7 +43,7 @@ class UNet3D(nn.Module):
         self.MaxPooling3d = nn.MaxPool3d(kernel_size=2, stride=2)
         self.softmax = nn.Softmax(dim=1)
 
-        self.initialize_weights()
+        # self.initialize_weights()
 
     def forward(self, x):
         down1_out = self.down1(x)                                               # 64 x 224 x 224 x 224
@@ -76,8 +76,8 @@ class UNet3D(nn.Module):
         out = self.softmax(out)
         return out
 
-    def initialize_weights(model, init_type='normal', activation='relu', init_gain=0.02, always_init=True):
-        for m in model.modules():
+    def initialize_weights(self, init_type='normal', activation='relu', init_gain=0.02, always_init=True):
+        for m in self.modules():
             if isinstance(m, (nn.Conv3d, nn.ConvTranspose3d)):
                 if init_type == 'kaiming_normal':
                     if isinstance(m, nn.ConvTranspose3d):

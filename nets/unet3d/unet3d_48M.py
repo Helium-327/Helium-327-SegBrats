@@ -127,7 +127,7 @@ class UNet3D(nn.Module):
         
         self.ConvOutput = nn.Conv3d(32, num_classes, kernel_size=1)
         self.softmax = nn.Softmax(dim=1)
-        self.initialize_weights(init_type='kaiming_normal')
+        # self.initialize_weights(init_type='kaiming_normal')
         
         
     def forward(self, x):
