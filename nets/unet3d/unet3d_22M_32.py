@@ -43,7 +43,7 @@ class UNet3D(nn.Module):        # FIXME: 初始化之后损失异常
         
         self.softmax = nn.Softmax(dim=1)
         
-        self.initialize_weights(init_type="kaiming_normal", activation="relu")
+        # self.initialize_weights(init_type="kaiming_normal", activation="relu")
 
     def forward(self, x):
         down1_out = self.down1(x)                                               # 64 x 224 x 224 x 224
@@ -109,7 +109,7 @@ class UNet3D(nn.Module):        # FIXME: 初始化之后损失异常
                 if always_init:
                     if m.bias is not None:
                         nn.init.constant_(m.bias, 0)
-
+                        
 
 if __name__ == "__main__":
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")

@@ -152,10 +152,10 @@ class UNet3D(nn.Module):
         up7_cat_down1 = torch.cat([up7, input_layer], dim=1) # [32 x 128 x 128, 32 x 128 x 128] ----> 64 x 128 x 128
         up8 = self.Conv9(up7_cat_down1) # 32 x 128 x 128
         output = self.ConvOutput(up8) # num_class x 128 x 128
+
         out = self.softmax(output)  # 非常重要，否则会出现损失会异常
         
-        return out     
-
+        return out          
 
     def initialize_weights(self, init_type='normal', activation='relu', init_gain=0.02, always_init=True):
         for m in self.modules():
