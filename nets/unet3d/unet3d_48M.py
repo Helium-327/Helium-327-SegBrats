@@ -127,6 +127,8 @@ class UNet_3D(nn.Module):
         
         self.ConvOutput = nn.Conv3d(32, num_classes, kernel_size=1)
         self.softmax = nn.Softmax(dim=1)
+
+        self.initialize_weights()
         
         
     def forward(self, x):
@@ -153,16 +155,16 @@ class UNet_3D(nn.Module):
         output = self.ConvOutput(up8) # num_class x 128 x 128
         return self.softmax(output)        
 
-def initialize_weights(model,  init_gain=0.02):
-    for m in model.modules():
-        if isinstance(m, nn.Conv3d):
-            nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
-        elif isinstance(m, nn.BatchNorm3d):
-            nn.init.constant_(m.weight, 1)
-            nn.init.constant_(m.bias, 0)
-        elif isinstance(m, nn.Linear):
-            nn.init.normal_(m.weight, 0, init_gain)
-            nn.init.constant_(m.bias, 0)
+    def initialize_weights(model,  init_gain=0.02):
+        for m in model.modules():
+            if isinstance(m, nn.Conv3d):
+                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+            elif isinstance(m, nn.BatchNorm3d):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
+            elif isinstance(m, nn.Linear):
+                nn.init.normal_(m.weight, 0, init_gain)
+                nn.init.constant_(m.bias, 0)
 
 
 if __name__ == "__main__":
