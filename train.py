@@ -27,7 +27,7 @@ from transforms import data_transform, Compose, RandomCrop3D, Normalize, tioRand
 from utils.writinglog import writeTraininglog
 from utils.splitDataList import DataSpliter
 from utils.utils_ckpt import save_checkpoint, load_checkpoint
-from nets.unet3d.unet3d_90M import UNet3D
+from nets.unet3ds import UNet_3d_22M_32, UNet_3d_22M_64, UNet_3d_48M, UNet_3d_90M, init_weights_light, init_weights_pro
 from metrics import EvaluationMetrics
 
 from loss_function import DiceLoss, CELoss, FocalLoss
@@ -36,6 +36,10 @@ from train_and_val import train_one_epoch, val_one_epoch
 os.environ["CUDA_LAUNCH_BLOCKING"] = '1'
 torch.backends.cudnn.benchmark = True
 torch.backends.cudnn.deterministic = True
+
+# constant
+RANDOM_SEED = 42
+DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
 
@@ -254,14 +258,20 @@ def main(args):
     """创建模型实例"""
     start_epoch = 0
     best_val_loss = float('inf')
-    if args.model == 'UNet_3D':       
-        model = UNet3D(4, 4)
-        
-    # elif args.model == 'UNet_2D':
-    #     model = UNet_2D(4, 4)
     
-    model.initialize_weights(init_type="kaiming_normal", activation="relu")
-    model.to(args.device)
+    assert args.model in ['UNet_3d_22M_32', 'UNet_3d_22M_64', 'UNet_3d_48M', 'UNet_3d_90M'], "Invalid model name"
+    
+    if args.model == 'UNet_3d_22M_64':
+        model = UNet_3d_22M_64(4, 4)
+    elif args.model == 'UNet_3d_48M':
+        model = UNet_3d_48M(4, 4)
+    elif args.model == 'UNet_3d_90M':
+        model = UNet_3d_90M(4, 4)
+    else:
+        model = UNet_3d_22M_32(4, 4)
+    
+    init_weights_light(model)
+    model.to(DEVICE)
 
     # FIXME: 实现断点训练
     if args.resume:
@@ -287,12 +297,14 @@ def main(args):
     
     assert os.path.exists(root), f"{root} not exists."
     
-    dataspliter =  DataSpliter(path_data, train_split=args.ts, val_split=args.vs, seed=args.seed)
+    if args.data_split:
+        dataspliter =  DataSpliter(path_data, train_split=args.ts, val_split=args.vs, seed=RANDOM_SEED)
 
-    train_list, test_list, val_list = dataspliter.data_split()
-    dataspliter.save_as_csv(train_list, train_csv)
-    dataspliter.save_as_csv(test_list, val_csv)
-    dataspliter.save_as_csv(val_list, test_csv)
+        train_list, test_list, val_list = dataspliter.data_split()
+        dataspliter.save_as_csv(train_list, train_csv)
+        dataspliter.save_as_csv(test_list, val_csv)
+        dataspliter.save_as_csv(val_list, test_csv)
+    
 
     # ====================== 载入数据集 ====================================
     TransMethods_train = data_transform(transform=Compose([RandomCrop3D(size=args.trainCropSize),    # 随机裁剪
@@ -403,7 +415,7 @@ def main(args):
           scheduler=scheduler,
           loss_function=loss_function,
           num_epochs=args.epochs, 
-          device=args.device, 
+          device=DEVICE, 
           ckpt_root=args.ckpt_path,
           results_path=args.results_path,
           start_epoch=start_epoch,
@@ -415,36 +427,37 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train args")
 
-    parser.add_argument("--data_root" , type=str, default="./brats21", help="data root")
-    parser.add_argument("--model", type=str, default="UNet_3D", help="model")
+    parser.add_argument("--data_root" , type=str, default="./brats21_local", help="data root")
+    parser.add_argument("--model", type=str, default="UNet_3d_22M_32", help="model")
     parser.add_argument("--input_channels", type=int, default=4, help="input channels")
     parser.add_argument("--output_channels", type=int, default=4, help="output channels")
     parser.add_argument("--ckpt_path", type=str, default="./checkpoints", help="checkpoint root")
     
     parser.add_argument("--epochs", type=int, default=20, help="num_epochs")
     parser.add_argument("--nw", type=int, default=8, help="num_workers")
-    parser.add_argument("--bs", type=int, default=4, help="batch_size")
-    parser.add_argument("--ts", type=float, default=0.8, help="train_split")
-    parser.add_argument("--vs", type=float, default=0.1, help="val_split")
-    parser.add_argument("--seed", type=int, default=42, help="random_seed")
-    parser.add_argument("--lr", type=float, default=0.001, help="learning rate")
+    parser.add_argument("--bs", type=int, default=2, help="batch_size")
+    parser.add_argument("--lr", type=float, default=0.0001, help="learning rate")
     parser.add_argument("--wd", type=float, default=1e-5, help="weight decay")
     
     parser.add_argument("--trainCropSize", type=lambda x: tuple(map(int, x.split(','))), default=(128, 128, 128), help="crop size")
     parser.add_argument("--valCropSize", type=lambda x: tuple(map(int, x.split(','))), default=(128, 128, 128), help="crop size")
-    parser.add_argument("--device", type=str, default=torch.device("cuda:0" if torch.cuda.is_available() else "cpu"), help="device")
-    parser.add_argument("--loss", type=str, default="DiceLoss", help="loss function")
+    parser.add_argument("--loss", type=str, default="CELoss", help="loss function")
+    parser.add_argument("--loss_type", type=str, default="custom", help="loss type to grad")
     parser.add_argument("--optimizer", type=str, default="AdamW", help="optimizer")
     parser.add_argument("--scheduler", type=str, default="CosineAnnealingLR", help="scheduler")
     parser.add_argument("--scheduler_patience", type=int, default=3, help="scheduler patience")
     parser.add_argument("--scheduler_factor", type=float, default=0.9, help="scheduler factor")
     parser.add_argument("--train_mode", type=str, default="local", help="loading data scale")
-    parser.add_argument("--local_train_length", type=int, default=1000, help="train length")
-    parser.add_argument("--local_val_length", type=int, default=125, help="val length")
+    parser.add_argument("--local_train_length", type=int, default=100, help="train length")
+    parser.add_argument("--local_val_length", type=int, default=12, help="val length")
     parser.add_argument("--interval", type=int, default=1, help="checkpoint interval")
     parser.add_argument("--resume", type=str, default=None, help="resume training from checkpoint")
     parser.add_argument("--results_path", type=str, default="./results", help="result path")
+    
     parser.add_argument("--tb", type=bool, default=False, help="Tensorboard True or False")
+    parser.add_argument("--data_split", type=bool, default=False, help="data split True or False")
+    parser.add_argument("--ts", type=float, default=0.8, help="train_split_rata")
+    parser.add_argument("--vs", type=float, default=0.1, help="val_split_rate")
     # parser.add_argument("--stop_patience", type=int, default=10, help="early stopping")
     
     
