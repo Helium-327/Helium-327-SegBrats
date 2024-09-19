@@ -9,3 +9,4 @@ brats21/
 runs/
 results/
 checkpoints/
+.aider*
