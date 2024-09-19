@@ -2,7 +2,7 @@
 *.nii.gz
 *.pth
 *.csv
-__pycache__/
+*/__pycache__/
 
 brats21_local/
 brats21/
