@@ -13,10 +13,13 @@ from torch.nn import functional as F
 import torch
 
 class DiceLoss:
-    def __init__(self, smooth=1e-5):
+    def __init__(self, smooth=1e-5, w1=0.2, w2=0.3, w3=0.5):
         """
         初始化函数:
         :param smooth: 平滑因子
+        :param w1: ET权重
+        :param w2: TC权重
+        :param w3: WT权重
         """
         self.smooth = smooth
         self.sub_areas = ['ET', 'TC', 'WT']
@@ -27,8 +30,11 @@ class DiceLoss:
             'ET':3
         }
         self.num_classes = len(self.labels)
+        self.w1 = w1
+        self.w2 = w2
+        self.w3 = w3
 
-    def __call__(self, y_pred, y_mask):
+    def __call__(self, y_pred, y_mask, loss_type='custom'):
         """
         DiceLoss
         :param y_pred: 预测值 [batch, 4, D, W, H]
@@ -55,12 +61,29 @@ class DiceLoss:
         et_loss = safe_loss(loss_dict['ET'])
         tc_loss = safe_loss(loss_dict['TC'])
         wt_loss = safe_loss(loss_dict['WT'])
+        
         mean_loss = safe_loss(sum(loss_dict.values()) / len(sub_areas))
+        custom_loss = self.w1 * et_loss + self.w2 * tc_loss + self.w3 * wt_loss
+        assert loss_type in ['custom', 'mean'], f'loss_type must be in ["custom", "mean"], but got {loss_type}'
+        if loss_type == 'custom':
+            loss = custom_loss
+        else:
+            loss = mean_loss
 
-        return mean_loss, et_loss, tc_loss, wt_loss
+        return loss, et_loss, tc_loss, wt_loss
 
+
+# Focal Loss
 class FocalLoss:
-    def __init__(self, gamma=2, alpha=0.25):
+    def __init__(self, gamma=2, alpha=0.25, w1=0.2, w2=0.3, w3=0.5):
+        """
+        初始化函数:
+        :param gamma: 
+        :param alpha: 
+        :param w1: ET权重
+        :param w2: TC权重
+        :param w3: WT权重
+        """
         self.gamma = gamma
         self.alpha = alpha
         self.sub_areas = ['ET', 'TC', 'WT']
@@ -71,12 +94,16 @@ class FocalLoss:
             'ET':3
         }
         self.num_classes = len(self.labels)
+        self.w1 = w1
+        self.w2 = w2
+        self.w3 = w3
         
-    def __call__(self, y_pred, y_mask):
+    def __call__(self, y_pred, y_mask, loss_type='custom', norm='log'):
         """
         FocalLoss
         :param y_pred: 预测值 [batch, 4, D, W, H]
         :param y_mask: 真实值 [batch, D, W, H]
+        :param loss_type: loss计算方式，可选['custom', 'mean']，默认为'custom'
         """
         loss_dict = {}
         sub_areas = self.sub_areas
@@ -94,31 +121,53 @@ class FocalLoss:
         tc_loss = safe_loss(loss_dict['TC'])
         wt_loss = safe_loss(loss_dict['WT'])
         mean_loss = safe_loss(sum(loss_dict.values()) / len(sub_areas))
-        
-        return mean_loss, et_loss, tc_loss, wt_loss
+        custom_loss = self.w1 * et_loss + self.w2 * tc_loss + self.w3 * wt_loss
+
+        assert loss_type in ['custom', 'mean'], f'loss_type must be in ["custom", "mean"], but got {loss_type}'
+        if loss_type == 'custom':
+            loss = custom_loss
+        else:
+            loss = mean_loss
+            
     
+        # if norm == 'log':
+        #     et_loss = torch.log(et_loss)
+        #     tc_loss = torch.log(tc_loss)
+        #     wt_loss = torch.log(wt_loss)
+        #     mean_loss = torch.log(mean_loss)
+        #     loss = torch.log(loss)
+            
+        return loss, et_loss, tc_loss, wt_loss
     def cal_focal_loss(self, y_pred, y_mask):
-        cross_entropy = nn.CrossEntropyLoss(reduction="none")(y_pred, y_mask)
+        cross_entropy = F.cross_entropy(y_pred, y_mask, reduction="none")
         pt = torch.exp(-cross_entropy)
         focal_loss = (self.alpha * ((1 - pt) ** self.gamma) * cross_entropy).mean()
         return focal_loss
 
+# CELoss
 class CELoss:
-    def __init__(self, smooth=1e-5):
+    def __init__(self, smooth=1e-5, w1=0.2, w2=0.3, w3=0.5):
         """
         初始化函数:
         :param smooth: 平滑因子
+        :param w1: ET权重
+        :param w2: TC权重
+        :param w3: WT权重
         """
         self.smooth = smooth
         self.sub_areas = ['ET', 'TC', 'WT']
         self.labels = {
-            'BG': 0, 
-            'NCR' : 1,
-            'ED': 2,
+            'BG': 0,  # 背景
+            'NCR' : 1, # 
+            'ED': 2, # 增强肿瘤
             'ET':3
         }
         self.num_classes = len(self.labels)
-    def __call__(self, y_pred, y_mask):
+
+        self.w1 = w1
+        self.w2 = w2
+        self.w3 = w3
+    def __call__(self, y_pred, y_mask, loss_type='custom'):
         """
         CrossEntropyLoss
         :param y_pred: 预测值 [batch, 4, D, W, H]
@@ -132,15 +181,24 @@ class CELoss:
         pred_list, mask_list = splitSubAreas(y_pred, y_mask)
         
         for sub_area, pred, mask in zip(sub_areas, pred_list, mask_list):
-            loss = CrossEntropyLoss()(pred, mask)
-            loss_dict[sub_area] = loss
+            # loss = CrossEntropyLoss()(pred, mask)
+            celoss = F.cross_entropy(pred, mask, reduction="none")
+
+            loss_dict[sub_area] = celoss
         
         et_loss = safe_loss(loss_dict['ET'])
         tc_loss = safe_loss(loss_dict['TC'])
         wt_loss = safe_loss(loss_dict['WT'])
         mean_loss = safe_loss(sum(loss_dict.values()) / len(sub_areas))
+        custom_loss = self.w1 * et_loss + self.w2 * tc_loss + self.w3 * wt_loss
         
-        return mean_loss, et_loss, tc_loss, wt_loss        
+        assert loss_type in ['custom', 'mean'], f'loss_type must be in ["custom", "mean"], but got {loss_type}'
+        if loss_type == 'custom':
+            loss = custom_loss
+        else:
+            loss = mean_loss
+        
+        return loss, et_loss, tc_loss, wt_loss        
 
 
 def splitSubAreas(y_pred, y_mask):
