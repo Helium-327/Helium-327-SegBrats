@@ -53,9 +53,6 @@ def train_one_epoch(model, train_loader, scaler, optimizer, loss_function, devic
     train_et_loss = 0.0
     train_tc_loss = 0.0
     train_wt_loss = 0.0
-    mean_train_et_loss = 0.0
-    mean_train_tc_loss = 0.0
-    mean_train_wt_loss = 0.0
     
     train_loader = tqdm(train_loader, desc=f"# Training", leave=False)
     

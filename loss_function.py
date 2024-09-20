@@ -13,7 +13,7 @@ from torch.nn import functional as F
 import torch
 
 class DiceLoss:
-    def __init__(self, smooth=1e-5, w1=0.2, w2=0.3, w3=0.5):
+    def __init__(self, smooth=1e-5, w1=0.3, w2=0.3, w3=0.4):
         """
         初始化函数:
         :param smooth: 平滑因子
@@ -75,7 +75,7 @@ class DiceLoss:
 
 # Focal Loss
 class FocalLoss:
-    def __init__(self, gamma=2, alpha=0.25, w1=0.2, w2=0.3, w3=0.5):
+    def __init__(self, gamma=2, alpha=0.25, w1=0.3, w2=0.3, w3=0.4):
         """
         初始化函数:
         :param gamma: 
@@ -139,14 +139,14 @@ class FocalLoss:
             
         return loss, et_loss, tc_loss, wt_loss
     def cal_focal_loss(self, y_pred, y_mask):
-        cross_entropy = F.cross_entropy(y_pred, y_mask, reduction="none")
+        cross_entropy = F.cross_entropy(y_pred, y_mask, reduction="mean")
         pt = torch.exp(-cross_entropy)
-        focal_loss = (self.alpha * ((1 - pt) ** self.gamma) * cross_entropy).mean()
+        focal_loss = (self.alpha * ((1 - pt) ** self.gamma) * cross_entropy)
         return focal_loss
 
 # CELoss
 class CELoss:
-    def __init__(self, smooth=1e-5, w1=0.2, w2=0.3, w3=0.5):
+    def __init__(self, smooth=1e-5, w1=0.3, w2=0.3, w3=0.4):
         """
         初始化函数:
         :param smooth: 平滑因子
@@ -182,7 +182,7 @@ class CELoss:
         
         for sub_area, pred, mask in zip(sub_areas, pred_list, mask_list):
             # loss = CrossEntropyLoss()(pred, mask)
-            celoss = F.cross_entropy(pred, mask, reduction="none")
+            celoss = F.cross_entropy(pred, mask, reduction="mean")
 
             loss_dict[sub_area] = celoss
         

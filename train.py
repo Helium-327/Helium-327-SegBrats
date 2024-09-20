@@ -27,7 +27,7 @@ from transforms import data_transform, Compose, RandomCrop3D, Normalize, tioRand
 from utils.writinglog import writeTraininglog
 from utils.splitDataList import DataSpliter
 from utils.utils_ckpt import save_checkpoint, load_checkpoint
-from nets.unet3ds import UNet_3d_22M_32, UNet_3d_22M_64, UNet_3d_48M, UNet_3d_90M, init_weights_light, init_weights_pro
+from nets.unet3ds import *
 from metrics import EvaluationMetrics
 
 from loss_function import DiceLoss, CELoss, FocalLoss
@@ -227,7 +227,7 @@ def train(model, Metrics, train_loader, val_loader, scaler, optimizer, scheduler
                             f"mean dice : {val_scores['Dice_scores'][0]:.4f};   ET : {val_scores['Dice_scores'][1]:.4f};   TC : {val_scores['Dice_scores'][2]:.4f};  WT : {val_scores['Dice_scores'][3]:.4f}\n")
                 checkpoint_path = os.path.join(ckpt_root, f"BraTS21_3d_{detailed_time_str}_{best_epoch}_{val_scores['Dice_scores'][0]:.4f}.pth")
                 
-                if best_val_loss < 0.3: # 损失小于0.3时保存模型
+                if best_val_loss < 0.5: # 损失小于0.5时保存模型
                     save_checkpoint(model, optimizer, scaler, best_epoch, best_val_loss, checkpoint_path)
                 
     print(f"🎉🎉🎉🎉 Train finished. Best val loss: {best_val_loss:.4f} at epoch {best_epoch+1}")
@@ -259,7 +259,7 @@ def main(args):
     start_epoch = 0
     best_val_loss = float('inf')
     
-    assert args.model in ['UNet_3d_22M_32', 'UNet_3d_22M_64', 'UNet_3d_48M', 'UNet_3d_90M'], "Invalid model name"
+    assert args.model in ['UNet_3d_22M_32', 'UNet_3d_22M_64', 'UNet_3d_48M', 'UNet_3d_90M', 'UNet_3d_ln', 'UNet_3d_ln2'], "Invalid model name"
     
     if args.model == 'UNet_3d_22M_64':
         model = UNet_3d_22M_64(4, 4)
@@ -267,6 +267,10 @@ def main(args):
         model = UNet_3d_48M(4, 4)
     elif args.model == 'UNet_3d_90M':
         model = UNet_3d_90M(4, 4)
+    elif args.model == 'UNet_3d_ln':
+        model = UNet_3d_ln(4, 4)
+    elif args.model == 'UNet_3d_ln2':
+        model = UNet_3d_ln2(4, 4)
     else:
         model = UNet_3d_22M_32(4, 4)
     
@@ -323,26 +327,25 @@ def main(args):
                                                          tioRandomFlip3d(),   
                                       ]))
     """加载数据集"""
-    if args.train_mode == 'local':
-        assert args.local_train_length and args.local_val_length ,"local Training need to set (local_tran_length) and (local_val_length)!"
+    if args.data_scale == 'local':
+        assert args.trainset_len and args.valset_len ,"local Training need to set (trainset_len) and (valset_len)!"
         # 载入部分数据集
         train_dataset = BraTS21_3d(train_csv, 
                                    transform=TransMethods_train,
                                    local_train=True, 
-                                   length=args.local_train_length)
+                                   length=args.trainset_len)
         
         val_dataset   = BraTS21_3d(val_csv, 
                                    transform=TransMethods_val, 
                                    local_train=True, 
-                                   length=args.local_val_length)
+                                   length=args.valset_len)
 
         # test_dataset  = BraTS21_3d(test_csv, 
         #                            transform=TransMethods_val, 
         #                            local_train=True, 
         #                            length=args.local_val_length)
     
-    elif args.train_mode == 'full':        # 载入全部数据集
-
+    elif args.data_scale == 'full':        # 载入全部数据集
         ## 全量数据集
         train_dataset = BraTS21_3d(train_csv, 
                                 transform=TransMethods_train)
@@ -353,7 +356,7 @@ def main(args):
         # test_dataset  = BraTS21_3d(test_csv, 
         #                         transform=TransMethods_val)
     else:
-        raise ValueError("train_mode must be 'local' or 'full'.")
+        raise ValueError("data_scale must be 'local' or 'full'.")
     
 
 
@@ -374,6 +377,8 @@ def main(args):
 
     # ======================= 训练组件 ========================================
     # 优化器
+    assert args.optimizer in ['AdamW', 'SGD', 'RMSprop'], \
+        f"optimizer must be 'AdamW', 'SGD' or 'RMSprop', but got {args.optimizer}."
     if args.optimizer == 'AdamW':
         optimizer = AdamW(model.parameters(), lr=args.lr, weight_decay=args.wd) # 会出现梯度爆炸或消失
     elif args.optimizer == 'SGD':
@@ -385,22 +390,22 @@ def main(args):
     
 
     # 调度器
+    assert args.scheduler in ['ReduceLROnPlateau', 'CosineAnnealingLR'], \
+        f"scheduler must be 'ReduceLROnPlateau' or 'CosineAnnealingLR', but got {args.scheduler}."
     if args.scheduler == 'ReduceLROnPlateau':
         scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=args.scheduler_factor, patience=args.scheduler_patience, verbose=True)
-    elif args.scheduler == 'CosineAnnealingLR':
-        scheduler = CosineAnnealingLR(optimizer, T_max=args.epochs, eta_min=1e-8)
     else:
-        raise ValueError("scheduler must be 'ReduceLROnPlateau' or 'CosineAnnealingLR'.")
+        scheduler = CosineAnnealingLR(optimizer, T_max=args.epochs, eta_min=1e-8)
     
     # 损失函数
-    if args.loss == 'DiceLoss':
-        loss_function = DiceLoss()
-    elif args.loss == 'CELoss':
+    assert args.loss in ['DiceLoss', 'CELoss', 'FocalLoss'], \
+        f"loss must be 'DiceLoss' or 'CELoss' or 'FocalLoss', but got {args.loss}."
+    if args.loss == 'CELoss':
         loss_function = CELoss()
     elif args.loss == 'FocalLoss':
         loss_function = FocalLoss()
     else:
-        raise ValueError("loss must be 'DiceLoss' or 'CELoss' or 'FocalLoss'.")
+        loss_function = DiceLoss()
     
     # # 早停
     # if args.stop_patience:
@@ -428,31 +433,35 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train args")
 
     parser.add_argument("--data_root" , type=str, default="./brats21_local", help="data root")
-    parser.add_argument("--model", type=str, default="UNet_3d_22M_32", help="model")
-    parser.add_argument("--input_channels", type=int, default=4, help="input channels")
-    parser.add_argument("--output_channels", type=int, default=4, help="output channels")
     parser.add_argument("--ckpt_path", type=str, default="./checkpoints", help="checkpoint root")
+    parser.add_argument("--resume", type=str, default=None, help="resume training from checkpoint")
+    parser.add_argument("--results_path", type=str, default="./results", help="result path")
     
+    parser.add_argument("--model", type=str, default="UNet_3d_22M_32", help="model")
     parser.add_argument("--epochs", type=int, default=20, help="num_epochs")
     parser.add_argument("--nw", type=int, default=8, help="num_workers")
     parser.add_argument("--bs", type=int, default=2, help="batch_size")
-    parser.add_argument("--lr", type=float, default=0.0001, help="learning rate")
-    parser.add_argument("--wd", type=float, default=1e-5, help="weight decay")
     
+    parser.add_argument("--input_channels", type=int, default=4, help="input channels")
+    parser.add_argument("--output_channels", type=int, default=4, help="output channels")
     parser.add_argument("--trainCropSize", type=lambda x: tuple(map(int, x.split(','))), default=(128, 128, 128), help="crop size")
     parser.add_argument("--valCropSize", type=lambda x: tuple(map(int, x.split(','))), default=(128, 128, 128), help="crop size")
+    
     parser.add_argument("--loss", type=str, default="CELoss", help="loss function")
     parser.add_argument("--loss_type", type=str, default="custom", help="loss type to grad")
+    
     parser.add_argument("--optimizer", type=str, default="AdamW", help="optimizer")
-    parser.add_argument("--scheduler", type=str, default="CosineAnnealingLR", help="scheduler")
+    parser.add_argument("--lr", type=float, default=0.002, help="learning rate")
+    parser.add_argument("--wd", type=float, default=1e-5, help="weight decay")
+    
+    parser.add_argument("--scheduler", type=str, default="ReduceLROnPlateau", help="scheduler")
     parser.add_argument("--scheduler_patience", type=int, default=3, help="scheduler patience")
     parser.add_argument("--scheduler_factor", type=float, default=0.9, help="scheduler factor")
-    parser.add_argument("--train_mode", type=str, default="local", help="loading data scale")
-    parser.add_argument("--local_train_length", type=int, default=100, help="train length")
-    parser.add_argument("--local_val_length", type=int, default=12, help="val length")
+    
+    parser.add_argument("--data_scale", type=str, default="local", help="loading data scale")
+    parser.add_argument("--trainset_len", type=int, default=100, help="train length")
+    parser.add_argument("--valset_len", type=int, default=12, help="val length")
     parser.add_argument("--interval", type=int, default=1, help="checkpoint interval")
-    parser.add_argument("--resume", type=str, default=None, help="resume training from checkpoint")
-    parser.add_argument("--results_path", type=str, default="./results", help="result path")
     
     parser.add_argument("--tb", type=bool, default=False, help="Tensorboard True or False")
     parser.add_argument("--data_split", type=bool, default=False, help="data split True or False")

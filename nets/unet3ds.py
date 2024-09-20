@@ -1,5 +1,5 @@
-'''
 # -*- coding: UTF-8 -*-
+'''
 ================================================
 *      CREATE ON: 2024/09/19 20:51:56
 *      AUTHOR: @Junyin Xiong
@@ -12,7 +12,8 @@
 import torch
 import numpy as np
 import torch.nn as nn
-
+from torch.nn import functional as F
+from torchsummary import summary
 
 class DoubleConv(nn.Module):
     def __init__(self, in_channels, out_channels):
@@ -62,10 +63,10 @@ class UNet_3d_22M_32(nn.Module):        # FIXME: 初始化之后损失异常
 
     def forward(self, x):
         down1_out = self.down1(x)                                               # 64 x 224 x 224 x 224
-        down2_out = self.down2(self.MaxPooling3d(down1_out))                    # 128 x 112 x 112 x 112
-        down3_out = self.down3(self.MaxPooling3d(down2_out))                    # 256 x 56 x 56 x 56
-        down4_out = self.down4(self.MaxPooling3d(down3_out))                    # 512 x 28 x 28 x 28
-        down5_out = self.down5(self.MaxPooling3d(down4_out))                    # 1024 x 14 x 14 x 14
+        down2_out = self.down2(F.max_pool3d(down1_out, 2, 2))                    # 128 x 112 x 112 x 112
+        down3_out = self.down3(F.max_pool3d(down2_out, 2, 2))                    # 256 x 56 x 56 x 56
+        down4_out = self.down4(F.max_pool3d(down3_out, 2, 2))                    # 512 x 28 x 28 x 28
+        down5_out = self.down5(F.max_pool3d(down4_out, 2, 2))                    # 1024 x 14 x 14 x 14
 
         up1_out = self.up1(down5_out)                                           # 512 x 28 x 28 x 28
         up1_cat_out = torch.cat([up1_out, down4_out], dim=1)                    # 1024 x 28 x 28 x 28
@@ -345,10 +346,285 @@ class UNet_3d_48M(nn.Module):
         out = self.softmax(output)
         return out     
 
+class UNet3d_bn_256(nn.Module):
+    def __init__(self, in_channels, out_channels):
+        super(UNet3d_bn_256, self).__init__()
+        self.encoder1 = DoubleConv(in_channels, 32)
+        self.encoder2 = DoubleConv(32, 64)
+        self.encoder3 = DoubleConv(64, 128)
+        self.encoder4 = DoubleConv(128, 256)
+        # self.encoder5 = DoubleConv(256, 512) 
+
+        # self.decoder1 = DoubleConv(512, 256)
+        # self.con_trans1 = nn.ConvTranspose3d(512, 256, kernel_size=2, stride=2)
+        self.decoder1 = DoubleConv(256, 128)
+        self.conv_trans1 = nn.ConvTranspose3d(256, 128, kernel_size=2, stride=2)
+        self.decoder2 = DoubleConv(128, 64)
+        self.conv_trans2 = nn.ConvTranspose3d(128, 64, kernel_size=2, stride=2)
+        self.decoder3 = DoubleConv(64, 32)
+        self.conv_trans3 = nn.ConvTranspose3d(64, 32, kernel_size=2, stride=2)
+        self.out_conv = DoubleConv(32, out_channels)
+
+        self.softmax = nn.Softmax(dim=1)
+        
+        
+    def forward(self, x):
+        # 编码器部分
+        t1 = self.encoder1(x)                                               # 32 x 128 x 128 x 128
+        out = F.max_pool3d(t1, 2, 2)                                        # 32 x 64 x 64 x 64
+                                    
+        t2 = self.encoder2(out)                                             # 64 x 64 x 64 x 64
+        out = F.max_pool3d(t2, 2, 2)                                        # 64 x 32 x 32 x 32
+        
+        t3 = self.encoder3(out)                                             # 128 x 32 x 32 x 32
+        out = F.max_pool3d(t3, 2, 2)                                        # 128 x 16 x 16 x 16
+        
+        out = self.encoder4(out)                                            # 256 x 16 x 16 x 16
+        
+        # 解码器部分
+        out = self.conv_trans1(out)                                         # 128 x 32 x 32 x 32
+        out = self.decoder1(torch.cat([out, t3], dim=1))                    # 128 x 32 x 32 x 32
+        
+        out = self.conv_trans2(out)                                         # 64 x 64 x 64 x 64
+        out = self.decoder2(torch.cat([out, t2], dim=1))                    # 64 x 64 x 64 x 64                
+
+        out = self.conv_trans3(out)                                         # 32 x 128 x 128 x 128
+        out = self.decoder3(torch.cat([out, t1], dim=1))                    # 32 x 128 x 128 x 128
+
+        out = self.out_conv(out)                                            # out_channels x 128 x 128
+        
+        out = self.softmax(out)                                             # softmax
+        return out
+
+class UNet3d_bn_512(nn.Module):
+    def __init__(self, in_channels, out_channels):
+        super(UNet3d_bn_512, self).__init__()
+        self.encoder1 = DoubleConv(in_channels, 32)
+        self.encoder2 = DoubleConv(32, 64)
+        self.encoder3 = DoubleConv(64, 128)
+        self.encoder4 = DoubleConv(128, 256)
+        self.encoder5 = DoubleConv(256, 512) 
+
+        self.decoder1 = DoubleConv(512, 256)
+        self.conv_trans1 = nn.ConvTranspose3d(512, 256, kernel_size=2, stride=2)
+        self.decoder2 = DoubleConv(256, 128)
+        self.conv_trans2 = nn.ConvTranspose3d(256, 128, kernel_size=2, stride=2)
+        self.decoder3 = DoubleConv(128, 64)
+        self.conv_trans3 = nn.ConvTranspose3d(128, 64, kernel_size=2, stride=2)
+        self.decoder4 = DoubleConv(64, 32)
+        self.conv_trans4 = nn.ConvTranspose3d(64, 32, kernel_size=2, stride=2)
+        self.out_conv = DoubleConv(32, out_channels)
+
+        self.soft = nn.Softmax(dim=1)
+        
+        
+    def forward(self, x):
+        # 编码器部分
+        t1 = self.encoder1(x)                                               # 32 x 128 x 128 x 128
+        out = F.max_pool3d(t1, 2, 2)                                        # 32 x 64 x 64 x 64
+                                    
+        t2 = self.encoder2(out)                                             # 64 x 64 x 64 x 64
+        out = F.max_pool3d(t2, 2, 2)                                        # 64 x 32 x 32 x 32
+        
+        t3 = self.encoder3(out)                                             # 128 x 32 x 32 x 32
+        out = F.max_pool3d(t3, 2, 2)                                        # 128 x 16 x 16 x 16
+        
+        t4 = self.encoder4(out)                                             # 256 x 16 x 16 x 16
+        out = F.max_pool3d(t4, 2, 2)                                        # 256 x 8 x 8 x 8
+        
+        out = self.encoder5(out)                                            # 512 x 8 x 8 x 8
+        
+        
+        
+        out = self.conv_trans1(out)                                         # 256 x 16 x 16 x 16
+        out = self.decoder1(torch.cat([out, t4], dim=1))                    # 256 x 16 x 16 x 16
+        
+        out = self.conv_trans2(out)                                          # 128 x 32 x 32 x 32
+        out = self.decoder2(torch.cat([out, t3], dim=1))                    # 128 x 32 x 32 x 32
+        
+        out = self.conv_trans3(out)                                         # 64 x 64 x 64 x 64
+        out = self.decoder3(torch.cat([out, t2], dim=1))                    # 64 x 64 x 64 x 64                
+
+        out = self.conv_trans4(out)                                         # 32 x 128 x 128 x 128
+        out = self.decoder4(torch.cat([out, t1], dim=1))                    # 32 x 128 x 128 x 128
+
+        out = self.out_conv(out)                                            # out_channels x 128 x 128
+        
+        out = self.soft(out)                                             # softmax
+        return out
+
+# simple UNet3d_ln
+class UNet_3d_ln(nn.Module):
+    def __init__(self, in_channels, out_channels):
+        super(UNet_3d_ln, self).__init__()
+        self.encoder1 = nn.Conv3d(in_channels, 32, kernel_size=3, padding=1)
+        self.encoder2 = nn.Conv3d(32, 64, kernel_size=3, padding=1)
+        self.encoder3 = nn.Conv3d(64, 128, kernel_size=3, padding=1)
+        self.encoder4 = nn.Conv3d(128, 256, kernel_size=3, padding=1)
+        self.encoder5 = nn.Conv3d(256, 512, kernel_size=3, padding=1)
+
+        self.decoder1 = nn.Conv3d(512, 256, kernel_size=3, padding=1)
+        self.conv_trans1 = nn.ConvTranspose3d(512, 256, kernel_size=2, stride=2)
+        self.decoder2 = nn.Conv3d(256, 128, kernel_size=3, padding=1)
+        self.conv_trans2 = nn.ConvTranspose3d(256, 128, kernel_size=2, stride=2)
+        self.decoder3 = nn.Conv3d(128, 64, kernel_size=3, padding=1)
+        self.conv_trans3 = nn.ConvTranspose3d(128, 64, kernel_size=2, stride=2)
+        self.decoder4 = nn.Conv3d(64, 32, kernel_size=3, padding=1)
+        self.conv_trans4 = nn.ConvTranspose3d(64, 32, kernel_size=2, stride=2)
+        self.out_conv = nn.Conv3d(32, out_channels, kernel_size=3, padding=1)
+
+        self.soft = nn.Softmax(dim=1)
+        
+        
+    def forward(self, x):
+        # 编码器
+        out = self.encoder1(x)                                              # 32 x 128 x 128 x 128
+        out = F.relu(F.layer_norm(out, out.shape[-3:]))                     
+        t1 = out                                                            # 32 x 128 x 128 x 128
+        
+        out = F.max_pool3d(t1, 2, 2)                                        # 32 x 64 x 64 x 64
+        out = self.encoder2(out)                                            # 64 x 64 x 64 x 64
+        out = F.relu(F.layer_norm(out, out.shape[-3:]))
+        t2 = out                                                            # 64 x 64 x 64 x 64
+
+        out = F.max_pool3d(t2, 2, 2)                                        # 64 x 32 x 32 x 32
+        out = self.encoder3(out)                                            # 128 x 32 x 32 x 32
+        out = F.relu(F.layer_norm(out, out.shape[-3:]))
+        t3 = out                                                            # 128 x 32 x 32 x 32
+
+        out = F.max_pool3d(t3, 2, 2)                                        # 128 x 16 x 16 x 16
+        out = self.encoder4(out)                                            # 256 x 16 x 16 x 16
+        out = F.relu(F.layer_norm(out, out.shape[-3:]))                     
+        t4 = out                                                            # 256 x 16 x 16 x 16
+        
+        out = F.max_pool3d(t4, 2, 2)                                        # 256 x 8 x 8 x 8
+        out = self.encoder5(out)                                            # 512 x 8 x 8 x 8
+        out = F.relu(F.layer_norm(out, out.shape[-3:]))
+        
+        # 解码器
+        out = self.conv_trans1(out)                                         # 256 x 16 x 16 x 16
+        out = self.decoder1(torch.cat([out, t4], dim=1))                    # 256 x 16 x 16 x 16
+        out = F.relu(F.layer_norm(out, out.shape[-3:]))
+        
+        out = self.conv_trans2(out)                                         # 128 x 32 x 32 x 32
+        out = self.decoder2(torch.cat([out, t3], dim=1))                    # 128 x 32 x 32 x 32
+        out = F.relu(F.layer_norm(out, out.shape[-3:]))
+
+        out = self.conv_trans3(out)                                         # 64 x 64 x 64 x 64
+        out = self.decoder3(torch.cat([out, t2], dim=1))                    # 64 x 64 x 64 x 64
+        out = F.relu(F.layer_norm(out, out.shape[-3:]))                 
+        
+        out = self.conv_trans4(out)                                         # 32 x 128 x 128 x 128
+        out = self.decoder4(torch.cat([out, t1], dim=1))                    # 32 x 128 x 128 x 128
+        out = F.relu(F.layer_norm(out, out.shape[-3:]))                     
+        
+        out = self.out_conv(out)                                            # out_channels x 128 x 128 x 128
+        
+        out = self.soft(out)                                                # softmax
+        
+        return out
+
+
+# 改进
+class UNet_3d_ln2(nn.Module):
+    def __init__(self, in_channels, out_channels):
+        super(UNet_3d_ln2, self).__init__()
+        self.encoder1 = nn.Conv3d(in_channels, 32, kernel_size=3, padding=1)
+        self.encoder2 = nn.Conv3d(32, 64, kernel_size=3, padding=1)
+        self.encoder3 = nn.Conv3d(64, 128, kernel_size=3, padding=1)
+        self.encoder4 = nn.Conv3d(128, 256, kernel_size=3, padding=1)
+        self.encoder5 = nn.Conv3d(256, 512, kernel_size=3, padding=1)
+
+        self.conv_32    = nn.Conv3d(32, 32, kernel_size=3, padding=1)
+        self.conv_64    = nn.Conv3d(64, 64, kernel_size=3, padding=1)
+        self.conv_128    = nn.Conv3d(128, 128, kernel_size=3, padding=1)
+        self.conv_256    = nn.Conv3d(256, 256, kernel_size=3, padding=1)
+        self.conv_512    = nn.Conv3d(512, 512, kernel_size=3, padding=1)    
+        
+        self.decoder1 = nn.Conv3d(512, 256, kernel_size=3, padding=1)
+        self.conv_trans1 = nn.ConvTranspose3d(512, 256, kernel_size=2, stride=2)
+        self.decoder2 = nn.Conv3d(256, 128, kernel_size=3, padding=1)
+        self.conv_trans2 = nn.ConvTranspose3d(256, 128, kernel_size=2, stride=2)
+        self.decoder3 = nn.Conv3d(128, 64, kernel_size=3, padding=1)
+        self.conv_trans3 = nn.ConvTranspose3d(128, 64, kernel_size=2, stride=2)
+        self.decoder4 = nn.Conv3d(64, 32, kernel_size=3, padding=1)
+        self.conv_trans4 = nn.ConvTranspose3d(64, 32, kernel_size=2, stride=2)
+        self.out_conv = nn.Conv3d(32, out_channels, kernel_size=3, padding=1)
+
+        self.soft = nn.Softmax(dim=1)
+        
+        
+        
+    def forward(self, x):
+        # 编码器
+        out = self.encoder1(x)                                              # 32 x 128 x 128 x 128
+        out = F.relu(F.layer_norm(out, out.shape[-3:]))                     
+        out = self.conv_32(out)
+        out = F.relu(F.layer_norm(out, out.shape[-3:]))
+        t1 = out                                                            # 32 x 128 x 128 x 128
+        
+        out = F.max_pool3d(t1, 2, 2)                                        # 32 x 64 x 64 x 64
+        out = self.encoder2(out)                                            # 64 x 64 x 64 x 64
+        out = F.relu(F.layer_norm(out, out.shape[-3:]))
+        out = self.conv_64(out)
+        out = F.relu(F.layer_norm(out, out.shape[-3:]))
+        t2 = out                                                            # 64 x 64 x 64 x 64
+
+        out = F.max_pool3d(t2, 2, 2)                                        # 64 x 32 x 32 x 32
+        out = self.encoder3(out)                                            # 128 x 32 x 32 x 32
+        out = F.relu(F.layer_norm(out, out.shape[-3:]))
+        out = self.conv_128(out)
+        out = F.relu(F.layer_norm(out, out.shape[-3:]))
+        t3 = out                                                            # 128 x 32 x 32 x 32
+
+        out = F.max_pool3d(t3, 2, 2)                                        # 128 x 16 x 16 x 16
+        out = self.encoder4(out)                                            # 256 x 16 x 16 x 16
+        out = F.relu(F.layer_norm(out, out.shape[-3:]))                     
+        out = self.conv_256(out)
+        out = F.relu(F.layer_norm(out, out.shape[-3:]))
+        t4 = out                                                            # 256 x 16 x 16 x 16
+        
+        out = F.max_pool3d(t4, 2, 2)                                        # 256 x 8 x 8 x 8
+        out = self.encoder5(out)                                            # 512 x 8 x 8 x 8
+        out = F.relu(F.layer_norm(out, out.shape[-3:]))
+        out = self.conv_512(out)
+        out = F.relu(F.layer_norm(out, out.shape[-3:]))
+        
+        # 解码器
+        out = self.conv_trans1(out)                                         # 256 x 16 x 16 x 16
+        out = self.decoder1(torch.cat([out, t4], dim=1))                    # 256 x 16 x 16 x 16
+        out = F.relu(F.layer_norm(out, out.shape[-3:]))
+        out = self.conv_256(out)
+        out = F.relu(F.layer_norm(out, out.shape[-3:]))
+        
+        out = self.conv_trans2(out)                                         # 128 x 32 x 32 x 32
+        out = self.decoder2(torch.cat([out, t3], dim=1))                    # 128 x 32 x 32 x 32
+        out = F.relu(F.layer_norm(out, out.shape[-3:]))
+        out = self.conv_128(out)
+        out = F.relu(F.layer_norm(out, out.shape[-3:]))
+
+        out = self.conv_trans3(out)                                         # 64 x 64 x 64 x 64
+        out = self.decoder3(torch.cat([out, t2], dim=1))                    # 64 x 64 x 64 x 64
+        out = F.relu(F.layer_norm(out, out.shape[-3:]))                 
+        out = self.conv_64(out)
+        out = F.relu(F.layer_norm(out, out.shape[-3:]))
+        
+        out = self.conv_trans4(out)                                         # 32 x 128 x 128 x 128
+        out = self.decoder4(torch.cat([out, t1], dim=1))                    # 32 x 128 x 128 x 128
+        out = F.relu(F.layer_norm(out, out.shape[-3:]))                     
+        out = self.conv_32(out)
+        out = F.relu(F.layer_norm(out, out.shape[-3:]))
+        
+        out = self.out_conv(out)                                            # out_channels x 128 x 128 x 128
+        
+        out = self.soft(out)                                                # softmax
+        
+        return out
+    
 
 
 """---------------------------------------- 权重初始化 ----------------------------------------------"""
-def init_weights_pro(model, init_type='normal', activation='relu', init_gain=0.02, always_init=True):
+def init_weights_pro(model, init_type='normal', activation='relu', init_gain=0.02, always_init=False):
     for m in model.modules():
         if isinstance(m, (nn.Conv3d, nn.ConvTranspose3d)):
             if init_type == 'kaiming_normal':
@@ -401,14 +677,15 @@ def init_weights_light(model,  init_gain=0.02):
 if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    sample = np.random.rand(16, 155, 155, 155)
-    sample_3d = np.random.rand(1, 4, 144, 128, 128)
-    label  = np.randint(0, 3, (1, 144, 128, 128))
-    sample.shape
-    model = UNet_3d_22M_32(in_channels=4, num_classes=3)
-    # print(model)
-    model.to(device)
 
-    sample_tensor = torch.from_numpy(sample_3d).float()
-    out = model(sample_tensor.to(device))
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model = UNet3d_ln_double(in_channels=4, out_channels=4)
+    input_tensor = torch.randn([1, 4, 128, 128, 128]).float()
+
+    model.to(device)
+    input_tensor = input_tensor.to(device)
+
+
+    out = model(input_tensor)
     print(out.shape)
+    summary(model, (4, 128, 128, 128))
