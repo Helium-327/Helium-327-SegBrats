@@ -9,25 +9,24 @@ State:          3d can run
 '''
 
 import os
+
 import time
 import torch
 import numpy as np
+from tqdm import tqdm
 # from torch.nn import CrossEntropyLoss
 # from loss_function import Diceloss, crossEntropy_loss
-from torch.nn import CrossEntropyLoss
-from tqdm import tqdm
-from torchvision import transforms
-from torch.utils.data import DataLoader
+# from torch.nn import CrossEntropyLoss
+# from torchvision import transforms
+# from torch.utils.data import DataLoader
 
 # from torch.optim import Adam, SGD, RMSprop, AdamW
 from torch.amp import GradScaler, autocast
 
-# 加载本地模块
-from readDatasets.BraTS import BraTS21_3d
-from nets.unet3ds import UNet_3d_22M_32, UNet_3d_22M_64, UNet_3d_48M, UNet_3d_90M, init_weights_light, init_weights_pro
-# from loss_function import DiceLoss, CELoss
-from utils.datasets import split_datasets    # 这个导入怎么导的？
-from metrics import EvaluationMetrics
+# # 加载本地模块
+# from readDatasets.BraTS import BraTS21_3d
+# from nets.unet3ds import UNet_3d_22M_32, UNet_3d_22M_64, UNet_3d_48M, UNet_3d_90M, init_weights_light, init_weights_pro
+# from metrics import EvaluationMetrics
 
 os.environ["CUDA_LAUNCH_BLOCKING"] = '1'
 best_val_loss = float('inf')
@@ -54,7 +53,7 @@ def train_one_epoch(model, train_loader, scaler, optimizer, loss_function, devic
     train_tc_loss = 0.0
     train_wt_loss = 0.0
     
-    train_loader = tqdm(train_loader, desc=f"# Training", leave=False)
+    train_loader = tqdm(train_loader, desc=f"🛠️--Training", leave=False)
     
     for data in train_loader: # 读取每一个 batch
         # 获取输入数据
@@ -97,13 +96,10 @@ def val_one_epoch(model, Metric, val_loader, loss_function, epoch, device):
     val_et_loss = 0.0
     val_tc_loss = 0.0
     val_wt_loss = 0.0
-    # mean_val_et_loss = 0.0
-    # mean_val_tc_loss = 0.0
-    # mean_val_wt_loss = 0.0
     
     with torch.no_grad(): # 关闭梯度计算
         with autocast(device_type='cuda'):
-            val_loader = tqdm(val_loader, desc=f"# Validating", leave=False)
+            val_loader = tqdm(val_loader, desc=f"🧐--Validating", leave=False)
             for data in val_loader:
                 vimage, mask = data[0].to(device), data[1].to(device)                
                 with autocast(device_type='cuda'):

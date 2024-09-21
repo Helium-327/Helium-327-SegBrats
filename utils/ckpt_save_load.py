@@ -9,6 +9,7 @@ Current State:
 '''
 
 import torch
+import os
 
 def load_checkpoint(model, optimizer, scaler, checkpoint_path):
     best_val_loss = float('inf')
@@ -21,16 +22,15 @@ def load_checkpoint(model, optimizer, scaler, checkpoint_path):
     print(f"***Resuming training from epoch {start_epoch}...")
     return model, optimizer, scaler, start_epoch, best_val_loss
 
-def save_checkpoint(model, optimizer, scaler, epoch, best_val_loss, checkpoint_path):
+def save_checkpoint(model, optimizer, scaler, epoch, best_val_loss, checkpoint_path, comment):
     checkpoint = {
         'epoch': epoch,
         'best_val_loss': best_val_loss,
         'model_state_dict': model.state_dict(),
         'optimizer_state_dict': optimizer.state_dict(),
         'scaler_state_dict': scaler.state_dict()}
-    
     torch.save(checkpoint, checkpoint_path)
-    print(f"***Saving checkpoint to {checkpoint_path}...")
+    print(f"✨Saved {os.path.basename(checkpoint_path)} under {os.path.dirname(checkpoint_path)}")
 
     
     

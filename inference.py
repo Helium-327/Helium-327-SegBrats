@@ -24,7 +24,7 @@ from metrics import EvaluationMetrics
 from loss_function import DiceLoss, CELoss
 from transforms import data_transform, Compose, RandomCrop3D, Normalize, tioRandomFlip3d
 from readDatasets.BraTS import BraTS21_3d
-from utils.utils_ckpt import save_checkpoint, load_checkpoint
+from utils.save_load_ckpt import save_checkpoint, load_checkpoint
 from utils.splitDataList import DataSpliter
 from matplotlib import pyplot as plt
 

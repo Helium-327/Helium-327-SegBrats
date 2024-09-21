@@ -396,6 +396,7 @@ class UNet3d_bn_256(nn.Module):
         out = self.softmax(out)                                             # softmax
         return out
 
+
 class UNet3d_bn_512(nn.Module):
     def __init__(self, in_channels, out_channels):
         super(UNet3d_bn_512, self).__init__()
