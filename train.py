@@ -231,12 +231,12 @@ def train(model, Metrics, train_loader, val_loader, scaler, optimizer, scheduler
                 # 保存最佳模型
                 save_counter += 1
                 best_ckpt_path = os.path.join(ckpt_dir, f'best@epoch{best_epoch}_{loss_func_name.lower()}{best_val_loss:.4f}_dice{best_dice:.4f}_{save_counter}.pth')
-                if save_counter <= save_max:
-                    save_checkpoint(model, optimizer, scaler, best_epoch, best_val_loss, best_ckpt_path)
-                else:
-                    removed_ckpt = [ckpt for ckpt in os.listdir(os.path.dirname(best_ckpt_path)) if (ckpt.endswith('.pth') and (ckpt.split('.')[-2].split('_')[-1] == str(save_counter - save_max)))] # 获取要删除的文件名
+                if save_counter > save_max:
+                    removed_ckpt = [ckpt for ckpt in os.listdir(ckpt_dir) if (ckpt.endswith('.pth') and (int(ckpt.split('.')[-2].split('_')[-1]) == int(save_counter - save_max)))] # 获取要删除的文件名
                     os.remove(os.path.join(ckpt_dir, removed_ckpt[0]))
                     print(f"🗑️ Due to reach the max save amount, Removed {removed_ckpt[0]}")
+                    save_checkpoint(model, optimizer, scaler, best_epoch, best_val_loss, best_ckpt_path)
+                else:
                     save_checkpoint(model, optimizer, scaler, best_epoch, best_val_loss, best_ckpt_path)
             else:
                 # 早停策略，如果连续patience个epoch没有改进，则停止训练

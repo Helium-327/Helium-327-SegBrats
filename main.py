@@ -238,7 +238,7 @@ if __name__ == "__main__":
     parser.add_argument("--resume", type=str, default=None, help="resume training from checkpoint")
     
     parser.add_argument("--model", type=str, default="UNet_3d_22M_32", help="model")
-    parser.add_argument("--epochs", type=int, default=20, help="num_epochs")
+    parser.add_argument("--epochs", type=int, default=60, help="num_epochs")
     parser.add_argument("--nw", type=int, default=8, help="num_workers")
     parser.add_argument("--bs", type=int, default=2, help="batch_size")
     parser.add_argument("--early_stop_patience", type=int, default=10, help="early stop patience")
@@ -250,7 +250,7 @@ if __name__ == "__main__":
     
     parser.add_argument("--loss", type=str, default="DiceLoss", help="loss function")
     parser.add_argument("--loss_type", type=str, default="custom", help="loss type to grad")
-    parser.add_argument("--save_max", type=float, default=5, help="ckpt max save number")
+    parser.add_argument("--save_max", type=int, default=5, help="ckpt max save number")
 
     parser.add_argument("--optimizer", type=str, default="AdamW", help="optimizer")
     parser.add_argument("--lr", type=float, default=0.001, help="learning rate")
