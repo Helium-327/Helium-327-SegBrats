@@ -58,9 +58,9 @@ class DiceLoss:
             dice_c = 2 * (intersection + self.smooth) / (union + self.smooth)
             loss_dict[sub_area] = tensor_one - dice_c.mean()
         
-        et_loss = safe_loss(loss_dict['ET'])
-        tc_loss = safe_loss(loss_dict['TC'])
-        wt_loss = safe_loss(loss_dict['WT'])
+        et_loss = loss_dict['ET']
+        tc_loss = loss_dict['TC']
+        wt_loss = loss_dict['WT']
         
         mean_loss = safe_loss(sum(loss_dict.values()) / len(sub_areas))
         custom_loss = self.w1 * et_loss + self.w2 * tc_loss + self.w3 * wt_loss
@@ -117,10 +117,10 @@ class FocalLoss:
             loss = self.cal_focal_loss(pred, mask)
             loss_dict[sub_area] = loss 
         
-        et_loss = safe_loss(loss_dict['ET'])
-        tc_loss = safe_loss(loss_dict['TC'])
-        wt_loss = safe_loss(loss_dict['WT'])
-        mean_loss = safe_loss(sum(loss_dict.values()) / len(sub_areas))
+        et_loss = loss_dict['ET']
+        tc_loss = loss_dict['TC']
+        wt_loss = loss_dict['WT']
+        mean_loss = sum(loss_dict.values()) / len(sub_areas)
         custom_loss = self.w1 * et_loss + self.w2 * tc_loss + self.w3 * wt_loss
 
         assert loss_type in ['custom', 'mean'], f'loss_type must be in ["custom", "mean"], but got {loss_type}'
@@ -186,10 +186,10 @@ class CELoss:
 
             loss_dict[sub_area] = celoss
         
-        et_loss = safe_loss(loss_dict['ET'])
-        tc_loss = safe_loss(loss_dict['TC'])
-        wt_loss = safe_loss(loss_dict['WT'])
-        mean_loss = safe_loss(sum(loss_dict.values()) / len(sub_areas))
+        et_loss = loss_dict['ET']
+        tc_loss = loss_dict['TC']
+        wt_loss = loss_dict['WT']
+        mean_loss = sum(loss_dict.values()) / len(sub_areas)
         custom_loss = self.w1 * et_loss + self.w2 * tc_loss + self.w3 * wt_loss
         
         assert loss_type in ['custom', 'mean'], f'loss_type must be in ["custom", "mean"], but got {loss_type}'

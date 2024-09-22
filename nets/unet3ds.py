@@ -31,7 +31,7 @@ class DoubleConv(nn.Module):
         return self.double_conv(x)
 
 
-class UNet_3d_22M_32(nn.Module):        # FIXME: 初始化之后损失异常
+class UNet_3d_22M_32(nn.Module):   
     def __init__(self, in_channels, out_channels):
         super(UNet_3d_22M_32, self).__init__()
         

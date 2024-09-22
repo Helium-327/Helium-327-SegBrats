@@ -10,7 +10,7 @@
 import os
 import time
 import torch
-import readline # 解决input()无法使用Backspace的问题, 不能删掉
+import readline # 解决input()无法使用Backspace的问题, ⚠️不能删掉
 from tabulate import tabulate
 from torch.utils.tensorboard import SummaryWriter
 
@@ -183,7 +183,7 @@ def train(model, Metrics, train_loader, val_loader, scaler, optimizer, scheduler
             """-------------------------------------- 打印指标 --------------------------------------------------"""
             metric_table_header = ["Metric_Name", "MEAN", "ET", "TC", "WT"]
             metric_table_left = ["Dice", "Jaccard", "Accuracy", "Precision", "Recall", "F1", "F2"]
-            val_info_str =  f"=== Validating on [Epoch {epoch}/{end_epoch}] ===\n"\
+            val_info_str =  f"=== [Epoch {epoch}/{end_epoch}] ===\n"\
                             f"- Model:    {model_name}\n"\
                             f"- Optimizer:{optimizer_name}\n"\
                             f"- Scheduler:{scheduler_name}\n"\

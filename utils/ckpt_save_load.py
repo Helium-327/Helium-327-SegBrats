@@ -22,7 +22,7 @@ def load_checkpoint(model, optimizer, scaler, checkpoint_path):
     print(f"***Resuming training from epoch {start_epoch}...")
     return model, optimizer, scaler, start_epoch, best_val_loss
 
-def save_checkpoint(model, optimizer, scaler, epoch, best_val_loss, checkpoint_path, comment):
+def save_checkpoint(model, optimizer, scaler, epoch, best_val_loss, checkpoint_path):
     checkpoint = {
         'epoch': epoch,
         'best_val_loss': best_val_loss,

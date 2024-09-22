@@ -47,7 +47,7 @@ def main(args):
     start_epoch = 0
     best_val_loss = float('inf')
     
-    assert args.model in ['UNet_3d_22M_32', 'UNet_3d_22M_64', 'UNet_3d_48M', 'UNet_3d_90M', 'UNet_3d_ln', 'UNet_3d_ln2'], "Invalid model name"
+    assert args.model in ['UNet_3d_22M_32', 'UNet_3d_22M_64', 'UNet_3d_48M', 'UNet_3d_90M', 'UNet3d_bn_256', 'UNet3d_bn_512', 'UNet_3d_ln', 'UNet_3d_ln2'], "Invalid model name"
     
     if args.model == 'UNet_3d_22M_64':
         model = UNet_3d_22M_64(4, 4)
@@ -59,6 +59,10 @@ def main(args):
         model = UNet_3d_ln(4, 4)
     elif args.model == 'UNet_3d_ln2':
         model = UNet_3d_ln2(4, 4)
+    elif args.model == 'UNet3d_bn_256':
+        model = UNet3d_bn_256(4, 4)
+    elif args.model == 'UNet3d_bn_512':
+        model = UNet3d_bn_512(4, 4)
     else:
         model = UNet_3d_22M_32(4, 4)
     
@@ -111,7 +115,7 @@ def main(args):
                                                          tioRandomFlip3d(),   
                                       ]))
     
-    assert args.data_scale in ['small', 'full'], "data_scale must be 'small' or 'full'!"
+    assert args.data_scale in ['debug', 'small', 'full'], "data_scale must be 'debug', 'small' or 'full'!"
     if args.data_scale == 'small':
         # 载入部分数据集
         train_dataset = BraTS21_3d(train_csv, 
@@ -123,15 +127,27 @@ def main(args):
                                    transform=TransMethods_val, 
                                    local_train=True, 
                                    length=args.valSet_len)
-    
+    elif args.data_scale == 'debug':
+        # 载入部分数据集
+        setattr(args, 'trainSet_len', 80)
+        setattr(args, 'valSet_len', 10)
+        train_dataset = BraTS21_3d(train_csv, 
+                                   transform=TransMethods_train,
+                                   local_train=True, 
+                                   length=args.trainSet_len)
+
+        val_dataset   = BraTS21_3d(val_csv, 
+                                   transform=TransMethods_val, 
+                                   local_train=True, 
+                                   length=args.valSet_len)
     else:       # 载入全部数据集
+        setattr(args, 'trainSet_len', len(train_dataset))
+        setattr(args, 'valSet_len', len(val_dataset))
         train_dataset = BraTS21_3d(train_csv, 
                                 transform=TransMethods_train)
         
         val_dataset   = BraTS21_3d(val_csv, 
                                 transform=TransMethods_val)
-        setattr(args, 'trainSet_len', len(train_dataset))
-        setattr(args, 'valSet_len', len(val_dataset))
 
     assert args.nw > 0 and args.nw <= 8 , "num_workers must be in (0, 8]!"
     train_loader = DataLoader(train_dataset, 
@@ -148,7 +164,7 @@ def main(args):
     assert args.optimizer in ['AdamW', 'SGD', 'RMSprop'], \
         f"optimizer must be 'AdamW', 'SGD' or 'RMSprop', but got {args.optimizer}."
     if args.optimizer == 'AdamW':
-        optimizer = AdamW(model.parameters(), lr=args.lr, weight_decay=args.wd) # 会出现梯度爆炸或消失
+        optimizer = AdamW(model.parameters(), lr=args.lr, betas=(0.9, 0.99), weight_decay=args.wd) # 会出现梯度爆炸或消失
     elif args.optimizer == 'SGD':
         optimizer = SGD(model.parameters(), lr=args.lr, momentum=0.9)
     elif args.optimizer == 'RMSprop':
@@ -161,9 +177,11 @@ def main(args):
     assert args.scheduler in ['ReduceLROnPlateau', 'CosineAnnealingLR'], \
         f"scheduler must be 'ReduceLROnPlateau' or 'CosineAnnealingLR', but got {args.scheduler}."
     if args.scheduler == 'ReduceLROnPlateau':
-        scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=args.scheduler_factor, patience=args.scheduler_patience, verbose=True)
+        scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=args.reduce_factor, patience=args.reduce_patience)
     else:
-        scheduler = CosineAnnealingLR(optimizer, T_max=args.epochs, eta_min=1e-8)
+        scheduler = CosineAnnealingLR(optimizer, T_max=args.cosine_T_max, eta_min=args.cosine_min_lr)
+        delattr(args, 'reduce_patience')
+        delattr(args, 'reduce_factor')
     
     """------------------------------------- 损失函数 --------------------------------------------"""
     assert args.loss in ['DiceLoss', 'CELoss', 'FocalLoss'], \
@@ -209,7 +227,8 @@ def main(args):
           best_val_loss=best_val_loss,
           tb=args.tb,
           interval=args.interval,
-          save_loss_threshold=args.save_loss_threshold)
+          save_max=args.save_max,
+          early_stopping_patience=args.early_stop_patience)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train args")
@@ -222,25 +241,29 @@ if __name__ == "__main__":
     parser.add_argument("--epochs", type=int, default=20, help="num_epochs")
     parser.add_argument("--nw", type=int, default=8, help="num_workers")
     parser.add_argument("--bs", type=int, default=2, help="batch_size")
+    parser.add_argument("--early_stop_patience", type=int, default=10, help="early stop patience")
     
     parser.add_argument("--input_channels", type=int, default=4, help="input channels")
     parser.add_argument("--output_channels", type=int, default=4, help="output channels")
     parser.add_argument("--trainCropSize", type=lambda x: tuple(map(int, x.split(','))), default=(128, 128, 128), help="crop size")
     parser.add_argument("--valCropSize", type=lambda x: tuple(map(int, x.split(','))), default=(128, 128, 128), help="crop size")
     
-    parser.add_argument("--loss", type=str, default="CELoss", help="loss function")
+    parser.add_argument("--loss", type=str, default="DiceLoss", help="loss function")
     parser.add_argument("--loss_type", type=str, default="custom", help="loss type to grad")
-    parser.add_argument("--save_loss_threshold", type=float, default=0.5, help="loss threshold to save model")
+    parser.add_argument("--save_max", type=float, default=5, help="ckpt max save number")
 
     parser.add_argument("--optimizer", type=str, default="AdamW", help="optimizer")
-    parser.add_argument("--lr", type=float, default=0.002, help="learning rate")
-    parser.add_argument("--wd", type=float, default=1e-5, help="weight decay")
+    parser.add_argument("--lr", type=float, default=0.001, help="learning rate")
+    parser.add_argument("--wd", type=float, default=1e-4, help="weight decay")
+
+    parser.add_argument("--scheduler", type=str, default="CosineAnnealingLR", help="scheduler")
+    parser.add_argument("--cosine_min_lr", type=float, default=1e-5, help="CosineAnnealingLR min lr")
+    parser.add_argument("--cosine_T_max", type=float, default=30, help="CosineAnnealingLR T max")
+
+    parser.add_argument("--reduce_patience", type=int, default=3, help="ReduceLROnPlateau scheduler patience")
+    parser.add_argument("--reduce_factor", type=float, default=0.9, help="ReduceLROnPlateau scheduler factor")
     
-    parser.add_argument("--scheduler", type=str, default="ReduceLROnPlateau", help="scheduler")
-    parser.add_argument("--scheduler_patience", type=int, default=3, help="scheduler patience")
-    parser.add_argument("--scheduler_factor", type=float, default=0.9, help="scheduler factor")
-    
-    parser.add_argument("--data_scale", type=str, default="small", help="loading data scale")
+    parser.add_argument("--data_scale", type=str, default="debug", help="loading data scale")
     parser.add_argument("--trainSet_len", type=int, default=100, help="train length")
     parser.add_argument("--valSet_len", type=int, default=12, help="val length")
     parser.add_argument("--interval", type=int, default=1, help="checkpoint interval")
