@@ -41,6 +41,8 @@ class UNet_3d_22M_32(nn.Module):        # FIXME: 初始化之后损失异常
         self.down4 = DoubleConv(128, 256)
         self.down5 = DoubleConv(256, 512)
 
+        self.dropout = nn.Dropout3d(p=0.2)
+
         self.up1 = nn.ConvTranspose3d(512, 256, kernel_size=2, stride=2)
         self.up1_conv = DoubleConv(512, 256)
 
@@ -67,6 +69,8 @@ class UNet_3d_22M_32(nn.Module):        # FIXME: 初始化之后损失异常
         down3_out = self.down3(F.max_pool3d(down2_out, 2, 2))                    # 256 x 56 x 56 x 56
         down4_out = self.down4(F.max_pool3d(down3_out, 2, 2))                    # 512 x 28 x 28 x 28
         down5_out = self.down5(F.max_pool3d(down4_out, 2, 2))                    # 1024 x 14 x 14 x 14
+
+        down5_out = self.dropout(down5_out)                                     # 1024 x 14 x 14 x 14
 
         up1_out = self.up1(down5_out)                                           # 512 x 28 x 28 x 28
         up1_cat_out = torch.cat([up1_out, down4_out], dim=1)                    # 1024 x 28 x 28 x 28
@@ -98,6 +102,8 @@ class UNet_3d_22M_64(nn.Module):
         self.down3 = DoubleConv(128, 256)
         self.down4 = DoubleConv(256, 512)
 
+        self.dropout = nn.Dropout3d(p=0.2)
+
         self.up1 = nn.ConvTranspose3d(512, 256, kernel_size=2, stride=2)
         self.up1_conv = DoubleConv(512, 256)
 
@@ -118,6 +124,8 @@ class UNet_3d_22M_64(nn.Module):
         down2_out = self.down2(self.MaxPooling3d(down1_out))                    # 128 x 112 x 112 x 112
         down3_out = self.down3(self.MaxPooling3d(down2_out))                    # 256 x 56 x 56 x 56
         down4_out = self.down4(self.MaxPooling3d(down3_out))                    # 512 x 28 x 28 x 28
+
+        down4_out = self.dropout(down4_out)
 
         up1_out = self.up1(down4_out)                                           # 256 x 56 x 56 x 56
         up1_cat_out = torch.cat([up1_out, down3_out], dim=1)                    # 512 x 56 x 56 x 56
@@ -144,6 +152,8 @@ class UNet_3d_90M(nn.Module):
         self.down4 = DoubleConv(256, 512)
         self.down5 = DoubleConv(512, 1024)
 
+        self.dropout = nn.Dropout(p=0.2)
+
         self.up1 = nn.ConvTranspose3d(1024, 512, kernel_size=2, stride=2)
         self.up1_conv = DoubleConv(1024, 512)
 
@@ -169,6 +179,8 @@ class UNet_3d_90M(nn.Module):
         down3_out = self.down3(self.MaxPooling3d(down2_out))                    # 256 x 56 x 56 x 56
         down4_out = self.down4(self.MaxPooling3d(down3_out))                    # 512 x 28 x 28 x 28
         down5_out = self.down5(self.MaxPooling3d(down4_out))                    # 1024 x 14 x 14 x 14
+
+        down5_out = self.dropout(down5_out)
 
         up1_out = self.up1(down5_out)                                           # 512 x 28 x 28 x 28
         up1_cat_out = torch.cat([up1_out, down4_out], dim=1)                    # 1024 x 28 x 28 x 28
@@ -354,7 +366,7 @@ class UNet3d_bn_256(nn.Module):
         self.encoder3 = DoubleConv(64, 128)
         self.encoder4 = DoubleConv(128, 256)
         # self.encoder5 = DoubleConv(256, 512) 
-
+        self.dropout = nn.Dropout(p=0.2)
         # self.decoder1 = DoubleConv(512, 256)
         # self.con_trans1 = nn.ConvTranspose3d(512, 256, kernel_size=2, stride=2)
         self.decoder1 = DoubleConv(256, 128)
@@ -381,6 +393,7 @@ class UNet3d_bn_256(nn.Module):
         
         out = self.encoder4(out)                                            # 256 x 16 x 16 x 16
         
+        out = self.dropout(out)                                             # 256 x 16 x 16 x 16
         # 解码器部分
         out = self.conv_trans1(out)                                         # 128 x 32 x 32 x 32
         out = self.decoder1(torch.cat([out, t3], dim=1))                    # 128 x 32 x 32 x 32
@@ -405,6 +418,8 @@ class UNet3d_bn_512(nn.Module):
         self.encoder3 = DoubleConv(64, 128)
         self.encoder4 = DoubleConv(128, 256)
         self.encoder5 = DoubleConv(256, 512) 
+
+        self.dropout = nn.Dropout(p=0.2)
 
         self.decoder1 = DoubleConv(512, 256)
         self.conv_trans1 = nn.ConvTranspose3d(512, 256, kernel_size=2, stride=2)
@@ -435,7 +450,7 @@ class UNet3d_bn_512(nn.Module):
         
         out = self.encoder5(out)                                            # 512 x 8 x 8 x 8
         
-        
+        out = self.dropout(out)                                             # 512 x 8 x 8 x 8
         
         out = self.conv_trans1(out)                                         # 256 x 16 x 16 x 16
         out = self.decoder1(torch.cat([out, t4], dim=1))                    # 256 x 16 x 16 x 16
@@ -463,6 +478,8 @@ class UNet_3d_ln(nn.Module):
         self.encoder3 = nn.Conv3d(64, 128, kernel_size=3, padding=1)
         self.encoder4 = nn.Conv3d(128, 256, kernel_size=3, padding=1)
         self.encoder5 = nn.Conv3d(256, 512, kernel_size=3, padding=1)
+
+        self.dropout = nn.Dropout(p=0.5)
 
         self.decoder1 = nn.Conv3d(512, 256, kernel_size=3, padding=1)
         self.conv_trans1 = nn.ConvTranspose3d(512, 256, kernel_size=2, stride=2)
@@ -502,6 +519,8 @@ class UNet_3d_ln(nn.Module):
         out = self.encoder5(out)                                            # 512 x 8 x 8 x 8
         out = F.relu(F.layer_norm(out, out.shape[-3:]))
         
+        out = self.dropout(out)
+
         # 解码器
         out = self.conv_trans1(out)                                         # 256 x 16 x 16 x 16
         out = self.decoder1(torch.cat([out, t4], dim=1))                    # 256 x 16 x 16 x 16
@@ -536,6 +555,7 @@ class UNet_3d_ln2(nn.Module):
         self.encoder4 = nn.Conv3d(128, 256, kernel_size=3, padding=1)
         self.encoder5 = nn.Conv3d(256, 512, kernel_size=3, padding=1)
 
+        self.dropout = nn.Dropout3d(p=0.5)
         self.conv_32    = nn.Conv3d(32, 32, kernel_size=3, padding=1)
         self.conv_64    = nn.Conv3d(64, 64, kernel_size=3, padding=1)
         self.conv_128    = nn.Conv3d(128, 128, kernel_size=3, padding=1)
@@ -591,6 +611,8 @@ class UNet_3d_ln2(nn.Module):
         out = self.conv_512(out)
         out = F.relu(F.layer_norm(out, out.shape[-3:]))
         
+        out = self.dropout(out)                                             # 256 x 16 x 16 x 16
+
         # 解码器
         out = self.conv_trans1(out)                                         # 256 x 16 x 16 x 16
         out = self.decoder1(torch.cat([out, t4], dim=1))                    # 256 x 16 x 16 x 16
@@ -680,7 +702,7 @@ if __name__ == "__main__":
 
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = UNet3d_ln_double(in_channels=4, out_channels=4)
+    model = UNet_3d_ln2(in_channels=4, out_channels=4)
     input_tensor = torch.randn([1, 4, 128, 128, 128]).float()
 
     model.to(device)
