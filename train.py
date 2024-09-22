@@ -1,12 +1,10 @@
 # -*- coding: UTF-8 -*-
 '''
-
-代码说明:    训练流程
-
-Created on      2024/07/23 15:28:23
-Author:         @Mr_Robot
-State:          loss 可以正常下降，需要进行数据增强
-TODO:          1. 添加早停策略
+================================================
+*      CREATE ON: 2024/07/23 15:28:23
+*      AUTHOR: @Junyin Xiong
+*      DESCRIPTION: 训练流程
+=================================================
 '''
 
 import os
@@ -23,18 +21,21 @@ from nets.unet3ds import *
 from utils.get_commits import *
 
 
-os.environ["CUDA_LAUNCH_BLOCKING"] = '1'
-torch.backends.cudnn.benchmark = True
-torch.backends.cudnn.deterministic = True
-
 # constant
 RANDOM_SEED = 42
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
+os.environ["CUDA_LAUNCH_BLOCKING"] = '1'
+torch.backends.cudnn.benchmark = True
+torch.backends.cudnn.deterministic = True
+
+torch.manual_seed(RANDOM_SEED)
+torch.cuda.manual_seed(RANDOM_SEED)                 #让显卡产生的随机数一致
+
 
 
 date_time_str = get_current_date() + ' ' + get_current_time()
-def train(model, Metrics, train_loader, val_loader, scaler, optimizer, scheduler, loss_function, num_epochs, device, results_dir, logs_path, start_epoch, best_val_loss, tb=False,  interval=10, save_loss_threshold=0.4):
+def train(model, Metrics, train_loader, val_loader, scaler, optimizer, scheduler, loss_function, num_epochs, device, results_dir, logs_path, start_epoch, best_val_loss, tb=False,  interval=10, save_loss_threshold=0.4, early_stopping_patience=10):
     """
     模型训练流程
     :param model: 模型
@@ -46,6 +47,7 @@ def train(model, Metrics, train_loader, val_loader, scaler, optimizer, scheduler
     :param device: 设备
     """
     best_epoch = 0
+    early_stopping_counter = 0
     end_epoch = start_epoch + num_epochs
     model_name = model.__class__.__name__
     optimizer_name = optimizer.__class__.__name__
@@ -58,9 +60,9 @@ def train(model, Metrics, train_loader, val_loader, scaler, optimizer, scheduler
         
     
     for epoch in range(start_epoch, end_epoch):
-        
-        # =============================== 训练过程 ===============================
-        print(f"=== Training on [Epoch {epoch+1}/{end_epoch}] ===:")
+        epoch += 1
+        """-------------------------------------- 训练过程 --------------------------------------------------"""
+        print(f"=== Training on [Epoch {epoch}/{end_epoch}] ===:")
         
         train_mean_loss = 0.0
         start_time = time.time()
@@ -88,9 +90,9 @@ def train(model, Metrics, train_loader, val_loader, scaler, optimizer, scheduler
               f"- WT loss: {mean_train_wt_loss:.4f}\n"
               f"- Cost time: {train_cost_time/60:.2f}mins ⏱️\n")
         
-        # =============================== 验证过程 ===============================
-        if (epoch+1) % interval == 0:
-            print(f"=== Validating on [Epoch {epoch+1}/{end_epoch}] ===:")
+        """-------------------------------------- 验证过程 --------------------------------------------------"""
+        if (epoch) % interval == 0:
+            print(f"=== Validating on [Epoch {epoch}/{end_epoch}] ===:")
             
             # 开始计时
             start_time = time.time()
@@ -118,8 +120,7 @@ def train(model, Metrics, train_loader, val_loader, scaler, optimizer, scheduler
             val_scores['F2_scores'] = Metrics_list[6]
             # val_metrics.append(val_scores)
             
-            # 记录训练结果
-            # tensorboard记录验证结果
+            """-------------------------------------- TensorBoard 记录验证结果 --------------------------------------------------"""
             if tb: 
                 writer.add_scalars('val/DiceLoss', 
                                 {'Mean':val_mean_loss, 
@@ -183,12 +184,12 @@ def train(model, Metrics, train_loader, val_loader, scaler, optimizer, scheduler
             """-------------------------------------- 打印指标 --------------------------------------------------"""
             metric_table_header = ["Metric_Name", "MEAN", "ET", "TC", "WT"]
             metric_table_left = ["Dice", "Jaccard", "Accuracy", "Precision", "Recall", "F1", "F2"]
-            val_info_str =f" ===  Epoch {epoch} ===\n"\
-                            f"- Model:{model_name}\n"\
+            val_info_str =  f"=== Validating on [Epoch {epoch}/{end_epoch}] ===\n"\
+                            f"- Model:    {model_name}\n"\
                             f"- Optimizer:{optimizer_name}\n"\
                             f"- Scheduler:{scheduler_name}\n"\
-                            f"- LossFunc:{loss_func_name}\n"\
-                            f"- Lr:{scheduler.get_last_lr()[0]:.6f}\n"\
+                            f"- LossFunc: {loss_func_name}\n"\
+                            f"- Lr:       {scheduler.get_last_lr()[0]:.6f}\n"\
                             f"- val_cost_time:{val_cost_time:.4f}s ⏱️\n"
 
             # 优化点：直接通过映射获取指标名称，避免重复字符串格式化
@@ -211,25 +212,36 @@ def train(model, Metrics, train_loader, val_loader, scaler, optimizer, scheduler
             print(metrics_info)
             
             """------------------------------------- 保存权重文件 --------------------------------------------"""
-            last_ckpt_path = os.path.join(ckpt_dir, f'{model_name}_braTS21_{loss_func_name}_{date_time_str}_{epoch}_{val_mean_loss:.4f}.pth')
-            
+            best_dice = val_scores['Dice_scores'][0]
+            # last_ckpt_path = os.path.join(ckpt_dir, f'{model_name}_braTS21_{loss_func_name}_{get_current_date() + ' ' + get_current_time()}_{epoch}_{val_mean_loss:.4f}_{best_dice:.4f}.pth')
+            best_ckpt_path = os.path.join(ckpt_dir, 'best_ckpt.pth')
+
+
+
             if val_mean_loss < best_val_loss:
+                early_stopping_counter = 0
                 best_val_loss = val_mean_loss
                 best_epoch = epoch
                 with open(os.path.join(os.path.dirname(logs_path), "current_log.txt"), 'a') as f:
-                    f.write(f"=== EPOCH {best_epoch} ===:\n"\
-                            f"@ {date_time_str}\n"\
+                    f.write(f"=== Best EPOCH {best_epoch} ===:\n"\
+                            f"@ {get_current_date() + ' ' + get_current_time()}\n"\
                             f"current lr : {scheduler.get_last_lr()[0]:.6f}\n"\
                             f"loss: Mean:{val_mean_loss:.4f}\t ET: {mean_val_et_loss:.4f}\t TC: {mean_val_tc_loss:.4f}\t WT: {mean_val_wt_loss:.4f}\n"
                             f"mean dice : {val_scores['Dice_scores'][0]:.4f}\t" \
                             f"ET : {val_scores['Dice_scores'][1]:.4f}\t"\
                             f"TC : {val_scores['Dice_scores'][2]:.4f}\t" \
                             f"WT : {val_scores['Dice_scores'][3]:.4f}\n\n")
-                
+                    
                 if best_val_loss < save_loss_threshold: # 损失小于0.5时保存模型
-                    save_checkpoint(model, optimizer, scaler, best_epoch, best_val_loss, last_ckpt_path)
+                    save_checkpoint(model, optimizer, scaler, best_epoch, best_val_loss, best_ckpt_path)
+            else:
+                # 早停策略，如果连续patience个epoch没有改进，则停止训练
+                early_stopping_counter += 1
+                if early_stopping_counter >= early_stopping_patience:
+                    print(f"Early stopping at epoch {epoch} due to no improvement in validation loss.")
+                    break
                 
-    print(f"😃😃😃Train finished. Best val loss: 👉{best_val_loss:.4f} at epoch {best_epoch+1}")
+    print(f"😃😃😃Train finished. Best val loss: 👉{best_val_loss:.4f} at epoch {best_epoch}")
     # 训练完成后关闭 SummaryWriter
     writer.close() 
     
