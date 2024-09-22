@@ -35,9 +35,13 @@ def create_folder(folder_path):
         folder_path = os.path.join(folder_path, get_current_time())
         os.makedirs(folder_path)
         print(f"当前日期文件夹已存在，将创建时间文件夹：{folder_path} ")
-    else:
+    else: # 如果日期文件夹不存在，则先创建日期文件夹， 再创建时间文件夹
         os.makedirs(folder_path)
         print(f"当前日期文件夹 '{folder_path}' 已经创建。")
+        
+        folder_path = os.path.join(folder_path, get_current_time())
+        os.makedirs(folder_path)
+        print(f"当前时间文件夹 '{folder_path}' 已经创建。")
 
     return folder_path
 if __name__ == "__main__":
