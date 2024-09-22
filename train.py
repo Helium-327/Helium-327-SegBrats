@@ -35,7 +35,7 @@ torch.cuda.manual_seed(RANDOM_SEED)                 #让显卡产生的随机数
 
 
 date_time_str = get_current_date() + ' ' + get_current_time()
-def train(model, Metrics, train_loader, val_loader, scaler, optimizer, scheduler, loss_function, num_epochs, device, results_dir, logs_path, start_epoch, best_val_loss, tb=False,  interval=10, save_loss_threshold=0.4, early_stopping_patience=10):
+def train(model, Metrics, train_loader, val_loader, scaler, optimizer, scheduler, loss_function, num_epochs, device, results_dir, logs_path, start_epoch, best_val_loss, tb=False,  interval=10, save_max=10, early_stopping_patience=10):
     """
     模型训练流程
     :param model: 模型
@@ -47,6 +47,7 @@ def train(model, Metrics, train_loader, val_loader, scaler, optimizer, scheduler
     :param device: 设备
     """
     best_epoch = 0
+    save_counter = 0
     early_stopping_counter = 0
     end_epoch = start_epoch + num_epochs
     model_name = model.__class__.__name__
@@ -75,7 +76,8 @@ def train(model, Metrics, train_loader, val_loader, scaler, optimizer, scheduler
         mean_train_tc_loss = train_tc_loss / len(train_loader)
         mean_train_wt_loss = train_wt_loss / len(train_loader)
         
-        # scheduler.step(train_mean_loss)
+        if scheduler_name == 'CosineAnnealingLR':
+            scheduler.step()                    # 每种调度器的step方法不同，传入的参数也不一样
         writer.add_scalars('train/DiceLoss',
                            {'Mean':train_mean_loss, 
                             'ET': mean_train_et_loss, 
@@ -105,8 +107,6 @@ def train(model, Metrics, train_loader, val_loader, scaler, optimizer, scheduler
             mean_val_et_loss = val_et_loss / len(val_loader)
             mean_val_tc_loss = val_tc_loss / len(val_loader)
             mean_val_wt_loss = val_wt_loss / len(val_loader)
-            scheduler.step(val_mean_loss)
-            
             
             # 记录验证结果
             val_scores = {}
@@ -179,7 +179,6 @@ def train(model, Metrics, train_loader, val_loader, scaler, optimizer, scheduler
             end_time = time.time()
             val_cost_time = end_time - start_time
 
-
             
             """-------------------------------------- 打印指标 --------------------------------------------------"""
             metric_table_header = ["Metric_Name", "MEAN", "ET", "TC", "WT"]
@@ -214,9 +213,6 @@ def train(model, Metrics, train_loader, val_loader, scaler, optimizer, scheduler
             """------------------------------------- 保存权重文件 --------------------------------------------"""
             best_dice = val_scores['Dice_scores'][0]
             # last_ckpt_path = os.path.join(ckpt_dir, f'{model_name}_braTS21_{loss_func_name}_{get_current_date() + ' ' + get_current_time()}_{epoch}_{val_mean_loss:.4f}_{best_dice:.4f}.pth')
-            best_ckpt_path = os.path.join(ckpt_dir, 'best_ckpt.pth')
-
-
 
             if val_mean_loss < best_val_loss:
                 early_stopping_counter = 0
@@ -232,13 +228,21 @@ def train(model, Metrics, train_loader, val_loader, scaler, optimizer, scheduler
                             f"TC : {val_scores['Dice_scores'][2]:.4f}\t" \
                             f"WT : {val_scores['Dice_scores'][3]:.4f}\n\n")
                     
-                if best_val_loss < save_loss_threshold: # 损失小于0.5时保存模型
+                # 保存最佳模型
+                save_counter += 1
+                best_ckpt_path = os.path.join(ckpt_dir, f'best@epoch{best_epoch}_{loss_func_name.lower()}{best_val_loss:.4f}_dice{best_dice:.4f}_{save_counter}.pth')
+                if save_counter <= save_max:
+                    save_checkpoint(model, optimizer, scaler, best_epoch, best_val_loss, best_ckpt_path)
+                else:
+                    removed_ckpt = [ckpt for ckpt in os.listdir(os.path.dirname(best_ckpt_path)) if (ckpt.endswith('.pth') and (ckpt.split('.')[-2].split('_')[-1] == str(save_counter - save_max)))] # 获取要删除的文件名
+                    os.remove(os.path.join(ckpt_dir, removed_ckpt[0]))
+                    print(f"🗑️ Due to reach the max save amount, Removed {removed_ckpt[0]}")
                     save_checkpoint(model, optimizer, scaler, best_epoch, best_val_loss, best_ckpt_path)
             else:
                 # 早停策略，如果连续patience个epoch没有改进，则停止训练
                 early_stopping_counter += 1
                 if early_stopping_counter >= early_stopping_patience:
-                    print(f"Early stopping at epoch {epoch} due to no improvement in validation loss.")
+                    print(f"🎃 Early stopping at epoch {epoch} due to no improvement in validation loss.")
                     break
                 
     print(f"😃😃😃Train finished. Best val loss: 👉{best_val_loss:.4f} at epoch {best_epoch}")
