@@ -9,26 +9,27 @@ Current State:     #TODO:
 '''
 import os
 import torch
-from tabulate import tabulate
 import numpy as np
-import nibabel as nib
-
 from tqdm import tqdm
-from torch.utils.data import DataLoader
-from torch.optim import RMSprop
-from torch.amp import GradScaler, autocast
-
-from utils.writinglog import writeTraininglog
-from nets.unet3d_ import UNet_3D
-from metrics import EvaluationMetrics
-from loss_function import DiceLoss, CELoss
-from transforms import data_transform, Compose, RandomCrop3D, Normalize, tioRandomFlip3d
-from readDatasets.BraTS import BraTS21_3d
-from utils.save_load_ckpt import save_checkpoint, load_checkpoint
-from utils.splitDataList import DataSpliter
+import nibabel as nib
 from matplotlib import pyplot as plt
+from tabulate import tabulate
 
 from torch.nn import functional as F
+from torch.optim import RMSprop, AdamW
+from torch.amp import GradScaler, autocast
+from torch.utils.data import DataLoader
+
+from nets.unet3ds import UNet3d_bn_512
+from readDatasets.BraTS import BraTS21_3d
+from transforms import data_transform, Compose, RandomCrop3D, Normalize, tioRandomFlip3d
+# from loss_function import DiceLoss, CELoss
+from metrics import *
+
+from utils.log_writer import custom_logger
+from utils.ckpt_save_load import load_checkpoint
+# from utils.splitDataList import DataSpliter
+from utils.get_commits import *
 
 def inference(test_loader, model, Metricer, output_path, device, affine, window_size=(128, 128, 128), stride_size=(13, 32, 32)):
     """
@@ -112,9 +113,7 @@ def inference(test_loader, model, Metricer, output_path, device, affine, window_
     metric_table_left = ["Dice", "Jaccard", "Accuracy", "Precision", "Recall", "F1", "F2"]
 
     # 优化点：直接通过映射获取指标名称，避免重复字符串格式化
-    def format_value(value, decimals=4):
-        # 返回一个格式化后的字符串，保留指定的小数位数
-        return f"{value:.{decimals}f}"
+
     
     metric_scores_mapping = {metric: test_scorce[f"{metric}_scores"] for metric in metric_table_left}
     metric_table = [[metric,
@@ -125,8 +124,8 @@ def inference(test_loader, model, Metricer, output_path, device, affine, window_
     table_str = tabulate(metric_table, headers=metric_table_header, tablefmt='grid')
     metrics_info = table_str
 
-    log_name = f"test_metrics.txt"
-    writeTraininglog(output_path, metrics_info, log_name)
+    log_path = os.path.join(output_path, f"test_metrics.txt")
+    custom_logger(metrics_info, log_path, log_time=True)
     print(metrics_info)
 
 def slide_window_pred(model, test_data, device, window_size, stride_size):
@@ -139,12 +138,10 @@ def slide_window_pred(model, test_data, device, window_size, stride_size):
             for d in range(0, D - window_size[0]+1, stride_size[0]): # D 维度
                 for h in range(0, H - window_size[1]+1, stride_size[1]): # H 维度
                     for w in range(0, W - window_size[2]+1, stride_size[2]): # W 维度
-                        # print(predvimage != test_data)
                         patch = test_data[:, :, d:d+window_size[0], h:h+window_size[1], w:w+window_size[2]]
                         patch = patch.to(device)
 
                         pred = model(patch)
-                        # pred = pred.cpu().numpy()
 
                         # 将预测结果保存到原始图像的对应位置
                         pred_mask[:, :, d:d+window_size[0], h:h+window_size[1], w:w+window_size[2]] = pred
@@ -153,34 +150,31 @@ def slide_window_pred(model, test_data, device, window_size, stride_size):
 
 if __name__ == '__main__':
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    output_path = r"/mnt/d/AI_Research/WS-HUB/WS-BraTS/BraTS_segmentation/results/outputs"
-    checkpoint_path = r"/mnt/g/BraTS实验结果/2024-8-27/checkpoints/BraTS21_3d_2024-08-25-16-07-51_364_0.8973.pth"
-    test_csv = "/mnt/d/AI_Research/WS-HUB/WS-BraTS/BraTS_segmentation/brats21_local/val.csv"
+    
+    test_csv = "/mnt/d/AI_Research/WS-HUB/WS-BraTS/BraTS_segmentation/brats21_local/test.csv"
+    ckpt_path = r"./results/2024-09-22/21-48-32/checkpoints/UNet3d_bn_512_braTS21_2024-09-22 21-48-29/best@epoch58_diceloss0.3599_dice0.7308_22.pth"
+    results_path =  os.path.join(*ckpt_path.split("/")[:4])
+    outputs_path = os.path.join(results_path, "inference_results")
+    os.makedirs(outputs_path, exist_ok=True)
+
 
     affine = np.array([[ -1.,  -0.,  -0.,   0.],
                     [ -0.,  -1.,  -0., 239.],
                     [  0.,   0.,   1.,   0.],
                     [  0.,   0.,   0.,   1.]])
     
-
-    if not os.path.exists(output_path):
-        print("output path not exists, create it")
-        os.makedirs(output_path)
-    
-
-    model = UNet_3D(in_channels=4, num_classes=4)
+    model = UNet3d_bn_512(4, 4)
     model.to(device)
     
     Metricer = EvaluationMetrics()
     # loss_function = LossFunctions()
 
-    TransMethods_val   = data_transform(transform=Compose([RandomCrop3D(size=(154, 224, 224)),    # 随机裁剪
+    TransMethods_test   = data_transform(transform=Compose([RandomCrop3D(size=(154, 224, 224)),    # 随机裁剪
                                                         # tioRandonCrop3d(size=CropSize),
                                                          Normalize(mean=(0.114, 0.090, 0.170, 0.096), std=(0.199, 0.151, 0.282, 0.174)),   # 标准化
                                                          tioRandomFlip3d(),   
                                                         # tioRandomAffine(),          # 随机旋转
                                                         
-                                                        # tioRandomFlip3d(),                 # 随机翻转
                                                         # tioRandomElasticDeformation3d(),
                                                         # tioZNormalization(),               # 归一化
                                                         # tioRandomNoise3d(),
@@ -188,20 +182,20 @@ if __name__ == '__main__':
                                         ]))
 
     test_dataset  = BraTS21_3d(test_csv, 
-                            transform=TransMethods_val, 
+                            transform=TransMethods_test, 
                             local_train=True, 
-                            length=5)
+                            length=10)
 
     test_loader = DataLoader(dataset=test_dataset, 
                             batch_size=1, 
-                            num_workers=0, 
+                            num_workers=4, 
                             shuffle=False)
     
 
-    optimizer = RMSprop(model.parameters(), lr=1e-3, alpha=0.9, eps=1e-8)
+    optimizer = AdamW(model.parameters(), lr=0.001, betas=(0.9, 0.99), weight_decay=1e-5)
     scaler = GradScaler()
 
 
-    model, optimizer, scaler, start_epoch, best_val_loss = load_checkpoint(model, optimizer, scaler, checkpoint_path)
+    model, optimizer, scaler, start_epoch, best_val_loss = load_checkpoint(model, optimizer, scaler, ckpt_path)
     # print(model)
-    inference(test_loader, model, Metricer, output_path, device, affine)
+    inference(test_loader, model, Metricer, outputs_path, device, affine)

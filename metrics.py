@@ -309,6 +309,9 @@ class EvaluationMetrics:
         metrics = np.nan_to_num(metrics)
         return metrics
 
+def format_value(value, decimals=4):
+    # 返回一个格式化后的字符串，保留指定的小数位数
+    return f"{value:.{decimals}f}"
 
 if __name__ == '__main__':
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
