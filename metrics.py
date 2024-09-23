@@ -79,7 +79,6 @@ class EvaluationMetrics:
         :return: Dice 系数
         """
         dice_coeffs = {}
-        sub_areas = self.sub_areas
         # 预处理
         y_pred = torch.argmax(y_pred, dim=1).to(dtype=torch.int64) # 降维，选出概率最大的类索引值
         y_pred = F.one_hot(y_pred, num_classes=4).permute(0, 4, 1, 2, 3).float() # one-hot
@@ -87,28 +86,24 @@ class EvaluationMetrics:
         
         intersection = (y_pred * y_mask).sum(dim=(-3, -2, -1))
         union = y_pred.sum(dim=(-3, -2, -1)) + y_mask.sum(dim=(-3, -2, -1))
-        dice = 2*(intersection + self.smooth) / (union + self.smooth)
-        dice_coeffs['global dice'] = dice.mean(dim=0).sum()/ dice.shape[1]  # ? 为什么先求平均再求和
-        
-        
-        pred_list, mask_list = self.pre_processing(y_pred, y_mask) # 获取子区的预测标签和真实标签
+        dice = 2*(intersection) / (union)
+        dice_coeffs['global mean dice'] = dice.mean() 
         
         # 计算每个类别的Dice系数
-        
-        
-        for sub_area, sub_pred, sub_mask in zip(sub_areas, pred_list, mask_list):
+        pred_list, mask_list = self.pre_processing(y_pred, y_mask) # 获取子区的预测标签和真实标签
+        for sub_area, sub_pred, sub_mask in zip(self.sub_areas, pred_list, mask_list):
             intersection = (sub_pred * sub_mask).sum(dim=(-3, -2, -1))
             union = sub_pred.sum(dim=(-3, -2, -1)) + sub_mask.sum(dim=(-3, -2, -1))
-            dice_coeff = 2*(intersection + self.smooth) / (union + self.smooth)
-            dice_coeffs[sub_area] = dice_coeff.mean(dim=0)
+            dice_coeff = 2*(intersection) / union
+            dice_coeffs[sub_area] = dice_coeff.mean()
         
         # 提取特定类别的Dice系数
         et_dice = dice_coeffs['ET'].item()
         tc_dice = dice_coeffs['TC'].item()
         wt_dice = dice_coeffs['WT'].item()
-        global_dice = dice_coeffs['global dice'].item()
+        global_mean_dice = dice_coeffs['global mean dice'].item()
         
-        return global_dice, et_dice, tc_dice, wt_dice
+        return global_mean_dice, et_dice, tc_dice, wt_dice
     
     
     def jaccard_index(self, y_pred, y_mask):
@@ -116,44 +111,46 @@ class EvaluationMetrics:
         计算Jaccard 系数
         :param y_pred: 预测标签
         :param y_mask: 真实标签
-        :return: Jaccard 系数
+        :return: Jaccard 系数 (全局平均)
         """
         # 获取子区的预测标签和真实标签
         y_pred = torch.argmax(y_pred, dim=1).to(dtype=torch.int64) # 降维，选出概率最大的类索引值
         y_pred = F.one_hot(y_pred, num_classes=4).permute(0, 4, 1, 2, 3).float() # one-hot
         y_mask = F.one_hot(y_mask, num_classes=4).permute(0, 4, 1, 2, 3).float() # ont-hot
         
-        
         pred_list, mask_list = self.pre_processing(y_pred, y_mask) 
-        
-        sub_areas = self.sub_areas
         jaccard_coeffs = {}
         
+        # 计算全局Jaccard系数
+        intersection = (y_pred * y_mask).sum(dim=(-3, -2, -1))
+        union = y_pred.sum(dim=(-3, -2, -1)) + y_mask.sum(dim=(-3, -2, -1)) - intersection
+        mean_jaccard = (intersection) / (union)
+        jaccard_coeffs['global mean jaccard'] = mean_jaccard.mean()
+
         # 计算每个类别的Jaccard系数
-        for sub_area, pred, mask in zip(sub_areas, pred_list, mask_list):
+        for sub_area, pred, mask in zip(self.sub_areas, pred_list, mask_list):
             intersection = (pred * mask).sum(dim=(-3, -2, -1))
             union = pred.sum(dim=(-3, -2, -1)) + mask.sum(dim=(-3, -2, -1)) - intersection
-            jaccard = (intersection + self.smooth) / (union + self.smooth)
-            jaccard_coeffs[sub_area] = jaccard.mean(dim=0)
+            jaccard = intersection / union
+            jaccard_coeffs[sub_area] = jaccard.mean()
 
         # 提取特定类别的Jaccard系数
         et_jaccard = jaccard_coeffs['ET'].item()
         tc_jaccard = jaccard_coeffs['TC'].item()
         wt_jaccard = jaccard_coeffs['WT'].item()
-        
+        global_mean_jaccard = jaccard_coeffs['global mean jaccard'].item()
         # 计算平均Jaccard系数
-        mean_jaccard = sum(jaccard_coeffs.values()).item() / len(sub_areas)
-        return mean_jaccard, et_jaccard, tc_jaccard, wt_jaccard
+        
+        return global_mean_jaccard, et_jaccard, tc_jaccard, wt_jaccard
     
     def recall(self, y_pred, y_mask):       #FIXME: 正确性有待测试
         """
         计算Recall(查全率，敏感性（真阳性率））
         :param y_pred: 预测标签
         :param y_mask: 真实标签
-        :return: 敏感性，特异性
+        :return: 敏感性/特异性（全局平均 、ET 、TC、WT）
         """
         recall_scores = {}
-        sub_areas = self.sub_areas
         y_pred = torch.argmax(y_pred, dim=1).to(dtype=torch.int64) # 降维，选出概率最大的类索引值
         y_pred = F.one_hot(y_pred, num_classes=4).permute(0, 4, 1, 2, 3).float() # one-hot
         y_mask = F.one_hot(y_mask, num_classes=4).permute(0, 4, 1, 2, 3).float() # ont-hot
@@ -161,28 +158,32 @@ class EvaluationMetrics:
         # 获取子区的预测标签和真实标签
         pred_list, mask_list = self.pre_processing(y_pred, y_mask) 
 
+        # 计算全局的recall
+        TP, FN, _, _ = self.culculate_confusion_matrix(y_pred, y_mask)
+        recall = TP / (TP + FN)
+        recall_scores['global mean recall'] = recall.mean()
+
         # 计算混淆矩阵的元素
-        for sub_area, pred, mask in zip(sub_areas, pred_list, mask_list):
+        for sub_area, pred, mask in zip(self.sub_areas, pred_list, mask_list):
             TP, FN, _, _ = self.culculate_confusion_matrix(pred, mask)
             recall = TP / (TP + FN)
-            recall_scores[sub_area] = recall.mean(dim=0)
+            recall_scores[sub_area] = recall.mean()
         
         et_recall = recall_scores['ET'].item()
         tc_recall = recall_scores['TC'].item()
         wt_recall = recall_scores['WT'].item()
-        
-        mean_recall = sum(recall_scores.values()).item() / len(sub_areas)
-        return mean_recall, et_recall, tc_recall, wt_recall
+        global_mean_recall = recall_scores['global mean recall'].item()
+
+        return global_mean_recall, et_recall, tc_recall, wt_recall
     
     def precision(self, y_pred, y_mask):        #FIXME: 正确性有待测试
         """
         计算Precision （查准率，特异性（真阴性率））
         :param y_pred: 预测标签
         :param y_mask: 真实标签
-        :return: 查准率
+        :return: 全局平均查准率， ET查准率，TC查准率，WT查准率
         """
         precision_scores = {}
-        sub_areas = self.sub_areas
         
         y_pred = torch.argmax(y_pred, dim=1).to(dtype=torch.int64) # 降维，选出概率最大的类索引值
         y_pred = F.one_hot(y_pred, num_classes=4).permute(0, 4, 1, 2, 3).float() # one-hot
@@ -191,17 +192,23 @@ class EvaluationMetrics:
         # 获取子区的预测标签和真实标签
         pred_list, mask_list = self.pre_processing(y_pred, y_mask) 
 
+        # 计算全局的precision
+        TP, _, FP, _ = self.culculate_confusion_matrix(y_pred, y_mask)
+        precision = TP / (TP + FP)
+        precision_scores['global mean precision'] = precision.mean()
+
         # 计算混淆矩阵的元素
-        for sub_area, pred, mask in zip(sub_areas, pred_list, mask_list):
+        for sub_area, pred, mask in zip(self.sub_areas, pred_list, mask_list):
             TP, _, FP, _ = self.culculate_confusion_matrix(pred, mask)
             precision = TP / (TP + FP)
-            precision_scores[sub_area] = precision.mean(dim=0)
+            precision_scores[sub_area] = precision.mean()
             
-        mean_precision = sum(precision_scores.values()).item() / len(sub_areas)
+        
         et_precision = precision_scores['ET'].item()
         tc_precision = precision_scores['TC'].item()
         wt_precision = precision_scores['WT'].item()
-        return mean_precision, et_precision, tc_precision, wt_precision
+        global_mean_precision = precision_scores['global mean precision'].item()
+        return global_mean_precision, et_precision, tc_precision, wt_precision
         
     def accuracy(self, y_pred, y_mask):         #FIXME: 正确性有待测试
         """
@@ -211,24 +218,27 @@ class EvaluationMetrics:
         :return: 准确率
         """
         accuracy_scores = {}
-        sub_areas = self.sub_areas
-        
-        
         y_pred = torch.argmax(y_pred, dim=1).to(dtype=torch.int64) # 降维，选出概率最大的类索引值
         y_pred = F.one_hot(y_pred, num_classes=4).permute(0, 4, 1, 2, 3).float() # one-hot
         y_mask = F.one_hot(y_mask, num_classes=4).permute(0, 4, 1, 2, 3).float() # ont-hot
         
+        # 全局的accuracy
+        TP, FN, FP, TN = self.culculate_confusion_matrix(y_pred, y_mask)
+        accuracy = (TP + TN) / (TP + FN + FP + TN)
+        accuracy_scores['global mean accuracy'] = accuracy.mean()
+
+        # 获取子区的预测标签和真实标签
         pred_list, mask_list = self.pre_processing(y_pred, y_mask)
-        for sub_area, pred, mask in zip(sub_areas, pred_list, mask_list):
+        for sub_area, pred, mask in zip(self.sub_areas, pred_list, mask_list):
             TP, FN, FP, TN = self.culculate_confusion_matrix(pred, mask)
             accuracy = (TP + TN) / (TP + FN + FP + TN)
-            accuracy_scores[sub_area] = accuracy.mean(dim=0)
+            accuracy_scores[sub_area] = accuracy.mean()
             
-        mean_accuracy = sum(accuracy_scores.values()).item() / len(sub_areas)
+        global_mean_accuracy = accuracy_scores['global mean accuracy'].item()
         et_accuracy = accuracy_scores['ET'].item()
         tc_accuracy = accuracy_scores['TC'].item()
         wt_accuracy = accuracy_scores['WT'].item()
-        return mean_accuracy, et_accuracy, tc_accuracy, wt_accuracy
+        return global_mean_accuracy, et_accuracy, tc_accuracy, wt_accuracy
     
     def f1_score(self, y_pred, y_mask):         #FIXME: 正确性有待测试
         """
@@ -238,28 +248,28 @@ class EvaluationMetrics:
         :return: F1值
         """
         f1_scores = {}
-        sub_areas = self.sub_areas
         # y_pred = torch.argmax(y_pred, dim=1).to(dtype=torch.int64) # 降维，选出概率最大的类索引值
         # y_pred = F.one_hot(y_pred, num_classes=4).permute(0, 4, 1, 2, 3).float() # one-hot
         # y_mask = F.one_hot(y_mask, num_classes=4).permute(0, 4, 1, 2, 3).float() # ont-hot
         
-        pred_list, mask_list = self.pre_processing(y_pred, y_mask)
+        # pred_list, mask_list = self.pre_processing(y_pred, y_mask)
         precision_list = self.precision(y_pred, y_mask)
         recall_list = self.recall(y_pred, y_mask)
         
+        f1_scores['global mean f1'] = 2 * (precision_list[0] * recall_list[0]) / (precision_list[0] + recall_list[0])
         # f1_score on ET
-        f1_scores[sub_areas[0]] = 2 * (precision_list[1] * recall_list[1]) / (precision_list[1] + recall_list[1] + self.smooth)
+        f1_scores[self.sub_areas[0]] = 2 * (precision_list[1] * recall_list[1]) / (precision_list[1] + recall_list[1])
         # f1_socre on TC
-        f1_scores[sub_areas[1]] = 2 * (precision_list[2] * recall_list[2]) / (precision_list[2] + recall_list[2] + self.smooth)
+        f1_scores[self.sub_areas[1]] = 2 * (precision_list[2] * recall_list[2]) / (precision_list[2] + recall_list[2])
         # f1_score on WT
-        f1_scores[sub_areas[2]] = 2 * (precision_list[3] * recall_list[3]) / (precision_list[3] + recall_list[3] + self.smooth)
+        f1_scores[self.sub_areas[2]] = 2 * (precision_list[3] * recall_list[3]) / (precision_list[3] + recall_list[3])
         
         et_f1 = f1_scores['ET']
         tc_f1 = f1_scores['TC']
         wt_f1 = f1_scores['WT']
-        mean_f1 = sum(f1_scores.values()) / len(sub_areas)
+        global_mean_f1 = f1_scores['global mean f1']
         
-        return mean_f1, et_f1, tc_f1, wt_f1
+        return global_mean_f1, et_f1, tc_f1, wt_f1
     
     def f2_score(self, y_pred, y_mask):         #FIXME: 正确性有待测试
         """
@@ -270,24 +280,25 @@ class EvaluationMetrics:
         """
         
         f2_scores = {}
-        sub_areas = self.sub_areas
-        pred_list, mask_list = self.pre_processing(y_pred, y_mask)
+        # pred_list, mask_list = self.pre_processing(y_pred, y_mask)
         precision_list = self.precision(y_pred, y_mask)
         recall_list = self.recall(y_pred, y_mask)
         
+        # f1_score on global
+        f2_scores['global mean f2'] = 5 * (precision_list[0] * recall_list[0]) / (4*precision_list[0] + recall_list[0])
         # f1_score on ET
-        f2_scores[sub_areas[0]] = 5 * (precision_list[1] * recall_list[1]) / (4*precision_list[1] + recall_list[1] + self.smooth)
+        f2_scores[self.sub_areas[0]] = 5 * (precision_list[1] * recall_list[1]) / (4*precision_list[1] + recall_list[1])
         # f1_socre on TC
-        f2_scores[sub_areas[1]] = 5 * (precision_list[2] * recall_list[2]) / (4*precision_list[2] + recall_list[2] + self.smooth)
+        f2_scores[self.sub_areas[1]] = 5 * (precision_list[2] * recall_list[2]) / (4*precision_list[2] + recall_list[2])
         # f1_score on WT
-        f2_scores[sub_areas[2]] = 5 * (precision_list[3] * recall_list[3]) / (4*precision_list[3] + recall_list[3] + self.smooth)
+        f2_scores[self.sub_areas[2]] = 5 * (precision_list[3] * recall_list[3]) / (4*precision_list[3] + recall_list[3])
         
         et_f2 = f2_scores['ET']
         tc_f2 = f2_scores['TC']
         wt_f2 = f2_scores['WT']
-        mean_f2 = sum(f2_scores.values()) / len(sub_areas)
+        global_mean_f2 = global_mean_f2 = f2_scores['global mean f2']
 
-        return mean_f2, et_f2, tc_f2, wt_f2
+        return global_mean_f2, et_f2, tc_f2, wt_f2
     
     def update(self, y_pred, y_mask):
         """

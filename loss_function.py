@@ -48,9 +48,10 @@ class DiceLoss:
         intersection = (y_pred * y_mask).sum(dim=(-3, -2, -1))
         union = y_pred.sum(dim=(-3, -2, -1)) + y_mask.sum(dim=(-3, -2, -1))
         dice = 2 * (intersection + self.smooth) / (union + self.smooth)
-        loss = tensor_one - dice.mean(dim=1)  # 必须是tensor(1)
+        mean_loss = tensor_one - dice.mean()   # 必须是tensor(1)
         
         pred_list, mask_list = splitSubAreas(y_pred, y_mask)
+
         # 计算子区域的diceloss
         for sub_area, pred, mask in zip(sub_areas, pred_list, mask_list):
             intersection = (pred * mask).sum(dim=(-3, -2, -1))
@@ -62,7 +63,6 @@ class DiceLoss:
         tc_loss = loss_dict['TC']
         wt_loss = loss_dict['WT']
         
-        mean_loss = safe_loss(sum(loss_dict.values()) / len(sub_areas))
         custom_loss = self.w1 * et_loss + self.w2 * tc_loss + self.w3 * wt_loss
         assert loss_type in ['custom', 'mean'], f'loss_type must be in ["custom", "mean"], but got {loss_type}'
         if loss_type == 'custom':
@@ -71,7 +71,6 @@ class DiceLoss:
             loss = mean_loss
 
         return loss, et_loss, tc_loss, wt_loss
-
 
 # Focal Loss
 class FocalLoss:
@@ -113,6 +112,8 @@ class FocalLoss:
         loss_dict['global'] = focal_loss
         pred_list, mask_list = splitSubAreas(y_pred, y_mask)
         
+        mean_loss = self.cal_focal_loss(y_pred, y_mask)
+
         for sub_area, pred, mask in zip(sub_areas, pred_list, mask_list):
             loss = self.cal_focal_loss(pred, mask)
             loss_dict[sub_area] = loss 
@@ -120,30 +121,19 @@ class FocalLoss:
         et_loss = loss_dict['ET']
         tc_loss = loss_dict['TC']
         wt_loss = loss_dict['WT']
-        mean_loss = sum(loss_dict.values()) / len(sub_areas)
         custom_loss = self.w1 * et_loss + self.w2 * tc_loss + self.w3 * wt_loss
-
         assert loss_type in ['custom', 'mean'], f'loss_type must be in ["custom", "mean"], but got {loss_type}'
         if loss_type == 'custom':
-            loss = custom_loss
+            global_loss = custom_loss
         else:
-            loss = mean_loss
-            
-    
-        # if norm == 'log':
-        #     et_loss = torch.log(et_loss)
-        #     tc_loss = torch.log(tc_loss)
-        #     wt_loss = torch.log(wt_loss)
-        #     mean_loss = torch.log(mean_loss)
-        #     loss = torch.log(loss)
-            
-        return loss, et_loss, tc_loss, wt_loss
+            global_loss = mean_loss
+
+        return global_loss, et_loss, tc_loss, wt_loss
     def cal_focal_loss(self, y_pred, y_mask):
         cross_entropy = F.cross_entropy(y_pred, y_mask, reduction="mean")
         pt = torch.exp(-cross_entropy)
         focal_loss = (self.alpha * ((1 - pt) ** self.gamma) * cross_entropy)
         return focal_loss
-
 # CELoss
 class CELoss:
     def __init__(self, smooth=1e-5, w1=0.3, w2=0.3, w3=0.4):
@@ -177,28 +167,25 @@ class CELoss:
         sub_areas = self.sub_areas
         
         y_mask = F.one_hot(y_mask, num_classes=self.num_classes).permute(0, 4, 1, 2, 3).float()
-        
         pred_list, mask_list = splitSubAreas(y_pred, y_mask)
         
+        global_CEloss = F.cross_entropy(y_pred, y_mask, reduction="mean")
         for sub_area, pred, mask in zip(sub_areas, pred_list, mask_list):
-            # loss = CrossEntropyLoss()(pred, mask)
-            celoss = F.cross_entropy(pred, mask, reduction="mean")
-
-            loss_dict[sub_area] = celoss
+            CEloss = F.cross_entropy(pred, mask, reduction="mean")
+            loss_dict[sub_area] = CEloss
         
         et_loss = loss_dict['ET']
         tc_loss = loss_dict['TC']
         wt_loss = loss_dict['WT']
-        mean_loss = sum(loss_dict.values()) / len(sub_areas)
         custom_loss = self.w1 * et_loss + self.w2 * tc_loss + self.w3 * wt_loss
         
         assert loss_type in ['custom', 'mean'], f'loss_type must be in ["custom", "mean"], but got {loss_type}'
         if loss_type == 'custom':
-            loss = custom_loss
+            global_loss = custom_loss
         else:
-            loss = mean_loss
+            global_loss = global_CEloss
         
-        return loss, et_loss, tc_loss, wt_loss        
+        return global_loss, et_loss, tc_loss, wt_loss        
 
 
 def splitSubAreas(y_pred, y_mask):
