@@ -141,13 +141,13 @@ def main(args):
                                    local_train=True, 
                                    length=args.valSet_len)
     else:       # 载入全部数据集
-        setattr(args, 'trainSet_len', len(train_dataset))
-        setattr(args, 'valSet_len', len(val_dataset))
         train_dataset = BraTS21_3d(train_csv, 
                                 transform=TransMethods_train)
         
         val_dataset   = BraTS21_3d(val_csv, 
                                 transform=TransMethods_val)
+        setattr(args, 'trainSet_len', len(train_dataset))
+        setattr(args, 'valSet_len', len(val_dataset))
 
     assert args.nw > 0 and args.nw <= 8 , "num_workers must be in (0, 8]!"
     train_loader = DataLoader(train_dataset, 
