@@ -22,8 +22,9 @@ from utils.get_commits import *
 from utils.run_shell_command import *
 
 # constant
+TB_PORT = 6007
 RANDOM_SEED = 42
-scheduler_start_epoch = 30
+scheduler_start_epoch = 40
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 os.environ["CUDA_LAUNCH_BLOCKING"] = '1'
@@ -63,8 +64,6 @@ def train(model, Metrics, train_loader, val_loader, scaler, optimizer, scheduler
     os.makedirs(ckpt_dir, exist_ok=True)
     writer = SummaryWriter(tb_dir)
     
-    # 后台启动tensorboards面板
-    start_tensorboard(tb_dir, PROT=6006) 
     
     for epoch in range(start_epoch, end_epoch):
         epoch += 1
@@ -84,7 +83,7 @@ def train(model, Metrics, train_loader, val_loader, scaler, optimizer, scheduler
         
         if scheduler_name == 'CosineAnnealingLR' and epoch > scheduler_start_epoch: # 从第20个epoch开始，使用余弦退火学习率
             scheduler.step()                    # 每种调度器的step方法不同，传入的参数也不一样
-        writer.add_scalars('train/DiceLoss',
+        writer.add_scalars(f'{loss_func_name}/val',
                            {'Mean':train_mean_loss, 
                             'ET': mean_train_et_loss, 
                             'TC': mean_train_tc_loss, 
@@ -127,54 +126,59 @@ def train(model, Metrics, train_loader, val_loader, scaler, optimizer, scheduler
             # val_metrics.append(val_scores)
             
             """-------------------------------------- TensorBoard 记录验证结果 --------------------------------------------------"""
-            writer.add_scalars('val/DiceLoss', 
+            writer.add_scalars(f'{loss_func_name}/val', 
                             {'Mean':val_mean_loss, 
                                 'ET': mean_val_et_loss, 
                                 'TC': mean_val_tc_loss, 
                                 'WT': mean_val_wt_loss},
                             epoch)
+            
+            if epoch == start_epoch+1:
+                # 后台启动tensorboards面板
+                start_tensorboard(tb_dir, PORT=TB_PORT)
+
             if tb: 
-                writer.add_scalars('val/Dice_coeff',
+                writer.add_scalars('metrics/Dice_coeff',
                                 {'Mean':val_scores['Dice_scores'][0],
                                     'ET': val_scores['Dice_scores'][1],
                                     'TC': val_scores['Dice_scores'][2],
                                     'WT': val_scores['Dice_scores'][3]},
                                 epoch)
 
-                writer.add_scalars('val/Jaccard_index',
+                writer.add_scalars('metrics/Jaccard_index',
                                 {'Mean':val_scores['Jaccard_scores'][0],
                                     'ET': val_scores['Jaccard_scores'][1],
                                     'TC': val_scores['Jaccard_scores'][2],
                                     'WT': val_scores['Jaccard_scores'][3]},
                                 epoch)   
 
-                writer.add_scalars('val/Accuracy',
+                writer.add_scalars('metrics/Accuracy',
                                 {'Mean':val_scores['Accuracy_scores'][0],
                                     'ET': val_scores['Accuracy_scores'][1],
                                     'TC': val_scores['Accuracy_scores'][2],
                                     'WT': val_scores['Accuracy_scores'][3]},
                                 epoch)
                 
-                writer.add_scalars('val/Precision', 
+                writer.add_scalars('metrics/Precision', 
                                 {'Mean':val_scores['Precision_scores'][0],
                                     'ET': val_scores['Precision_scores'][1], 
                                     'TC': val_scores['Precision_scores'][2], 
                                     'WT': val_scores['Precision_scores'][3]},
                                 epoch)
                 
-                writer.add_scalars('val/Recall', 
+                writer.add_scalars('metrics/Recall', 
                                 {'Mean':val_scores['Recall_scores'][0], 
                                     'ET': val_scores['Recall_scores'][1], 
                                     'TC': val_scores['Recall_scores'][2], 
                                     'WT': val_scores['Recall_scores'][3]},
                                 epoch)
-                writer.add_scalars('val/F1', 
+                writer.add_scalars('metrics/F1', 
                                 {'Mean':val_scores['F1_scores'][0], 
                                     'ET': val_scores['F1_scores'][1], 
                                     'TC': val_scores['F1_scores'][2], 
                                     'WT': val_scores['F1_scores'][3]},
                                 epoch) 
-                writer.add_scalars('val/F2', 
+                writer.add_scalars('metrics/F2', 
                                 {'Mean':val_scores['F2_scores'][0], 
                                     'ET': val_scores['F2_scores'][1], 
                                     'TC': val_scores['F2_scores'][2], 
