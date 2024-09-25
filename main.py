@@ -247,8 +247,8 @@ if __name__ == "__main__":
     parser.add_argument("--trainCropSize", type=lambda x: tuple(map(int, x.split(','))), default=(128, 128, 128), help="crop size")
     parser.add_argument("--valCropSize", type=lambda x: tuple(map(int, x.split(','))), default=(128, 128, 128), help="crop size")
     
-    parser.add_argument("--loss", type=str, default="FocalLoss", help="loss function: ['DiceLoss', 'CELoss', 'FocalLoss']")
-    parser.add_argument("--loss_type", type=str, default="custom", help="loss type to grad")
+    parser.add_argument("--loss", type=str, default="DiceLoss", help="loss function: ['DiceLoss', 'CELoss', 'FocalLoss']")
+    parser.add_argument("--loss_type", type=str, default="mean", help="loss type to grad")
     parser.add_argument("--save_max", type=int, default=5, help="ckpt max save number")
 
     parser.add_argument("--optimizer", type=str, default="AdamW", help="optimizers: ['AdamW', 'SGD', 'RMSprop']")

@@ -9,7 +9,7 @@ def run_shell_command(command):
     """
     运行shell命令
     """
-    print(f"正在运行shell命令: {command}")
+    # print(f"正在运行shell命令: {command}")
     results = subprocess.run(command, shell=True, capture_output=True, text=True)
     if results.returncode == 0:
         print(f"命令执行成功！{results.stdout}")
