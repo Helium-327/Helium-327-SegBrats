@@ -1,3 +1,12 @@
+# -*- coding: UTF-8 -*-
+'''
+================================================
+*      CREATE ON: 2024/09/25 16:50:41
+*      AUTHOR: @Junyin Xiong
+*      DESCRIPTION: 运行终端命令
+=================================================
+'''
+
 import subprocess
 
 import socket
