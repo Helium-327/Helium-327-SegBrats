@@ -5,7 +5,6 @@
 *      AUTHOR: @Junyin Xiong
 *      DESCRIPTION: UNet3D
 =================================================
-
 '''
 
 
@@ -51,22 +50,23 @@ class UNet3D(nn.Module):
     def __init__(self, in_channels:int, out_channels:int, dropout_rate:float=0, use_bn:bool=True, use_ln:bool=False, use_dropout:bool=False, ln_spatial_shape:list=[]):
         super(UNet3D, self).__init__()     
         self.dropout_rate = dropout_rate
-        self.use_list = (use_bn, use_ln, use_dropout, dropout_rate)
+        self.encoder_use_list = (use_bn, use_ln, use_dropout, dropout_rate)
+        self.decoder_use_list = (use_bn, use_ln, False, dropout_rate)
         # 编码器
-        self.encoder1 = _make_conv_layer(in_channels, 32, *self.use_list)
-        self.encoder2 = _make_conv_layer(32, 64, *self.use_list)
-        self.encoder3 = _make_conv_layer(64, 128, *self.use_list)
-        self.encoder4 = _make_conv_layer(128, 256, *self.use_list)
-        self.encoder5 = _make_conv_layer(256, 512, *self.use_list)
+        self.encoder1 = _make_conv_layer(in_channels, 32, * self.encoder_use_list)
+        self.encoder2 = _make_conv_layer(32, 64, * self.encoder_use_list)
+        self.encoder3 = _make_conv_layer(64, 128, * self.encoder_use_list)
+        self.encoder4 = _make_conv_layer(128, 256, * self.encoder_use_list)
+        self.encoder5 = _make_conv_layer(256, 512, * self.encoder_use_list)
 
         # 解码器
-        self.decoder1 = _make_conv_layer(512, 256, *self.use_list)
+        self.decoder1 = _make_conv_layer(512, 256, *self.decoder_use_list)
         self.up1 = nn.ConvTranspose3d(512, 256, kernel_size=2, stride=2)
-        self.decoder2 = _make_conv_layer(256, 128, *self.use_list)
+        self.decoder2 = _make_conv_layer(256, 128, *self.decoder_use_list)
         self.up2 = nn.ConvTranspose3d(256, 128, kernel_size=2, stride=2)
-        self.decoder3 = _make_conv_layer(128, 64, *self.use_list)
+        self.decoder3 = _make_conv_layer(128, 64, *self.decoder_use_list)
         self.up3 = nn.ConvTranspose3d(128, 64, kernel_size=2, stride=2)
-        self.decoder4 = _make_conv_layer(64, 32, *self.use_list)
+        self.decoder4 = _make_conv_layer(64, 32, *self.decoder_use_list)
         self.up4 = nn.ConvTranspose3d(64, 32, kernel_size=2, stride=2)
 
         # 输出层
