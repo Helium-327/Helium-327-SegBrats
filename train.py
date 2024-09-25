@@ -19,10 +19,11 @@ from utils.log_writer import custom_logger
 from utils.ckpt_save_load import save_checkpoint, load_checkpoint
 from nets.unet3ds import *
 from utils.get_commits import *
-
+from utils.run_shell_command import *
 
 # constant
 RANDOM_SEED = 42
+scheduler_start_epoch = 30
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 os.environ["CUDA_LAUNCH_BLOCKING"] = '1'
@@ -32,9 +33,6 @@ torch.backends.cudnn.deterministic = True
 torch.manual_seed(RANDOM_SEED)
 torch.cuda.manual_seed(RANDOM_SEED)                 #让显卡产生的随机数一致
 
-
-
-date_time_str = get_current_date() + ' ' + get_current_time()
 def train(model, Metrics, train_loader, val_loader, scaler, optimizer, scheduler, loss_function, 
           num_epochs, device, results_dir, logs_path, start_epoch, best_val_loss, 
           tb=False,  
@@ -54,6 +52,7 @@ def train(model, Metrics, train_loader, val_loader, scaler, optimizer, scheduler
     best_epoch = 0
     save_counter = 0
     early_stopping_counter = 0
+    date_time_str = get_current_date() + '_' + get_current_time()
     end_epoch = start_epoch + num_epochs
     model_name = model.__class__.__name__
     optimizer_name = optimizer.__class__.__name__
@@ -63,7 +62,9 @@ def train(model, Metrics, train_loader, val_loader, scaler, optimizer, scheduler
     ckpt_dir = os.path.join(results_dir, f'checkpoints/{model_name}_braTS21_{date_time_str}')
     os.makedirs(ckpt_dir, exist_ok=True)
     writer = SummaryWriter(tb_dir)
-        
+    
+    # 后台启动tensorboards面板
+    start_tensorboard(tb_dir, PROT=6006) 
     
     for epoch in range(start_epoch, end_epoch):
         epoch += 1
@@ -81,7 +82,7 @@ def train(model, Metrics, train_loader, val_loader, scaler, optimizer, scheduler
         mean_train_tc_loss = train_tc_loss / len(train_loader)
         mean_train_wt_loss = train_wt_loss / len(train_loader)
         
-        if scheduler_name == 'CosineAnnealingLR' and epoch > 20: # 从第20个epoch开始，使用余弦退火学习率
+        if scheduler_name == 'CosineAnnealingLR' and epoch > scheduler_start_epoch: # 从第20个epoch开始，使用余弦退火学习率
             scheduler.step()                    # 每种调度器的step方法不同，传入的参数也不一样
         writer.add_scalars('train/DiceLoss',
                            {'Mean':train_mean_loss, 
@@ -126,14 +127,13 @@ def train(model, Metrics, train_loader, val_loader, scaler, optimizer, scheduler
             # val_metrics.append(val_scores)
             
             """-------------------------------------- TensorBoard 记录验证结果 --------------------------------------------------"""
+            writer.add_scalars('val/DiceLoss', 
+                            {'Mean':val_mean_loss, 
+                                'ET': mean_val_et_loss, 
+                                'TC': mean_val_tc_loss, 
+                                'WT': mean_val_wt_loss},
+                            epoch)
             if tb: 
-                writer.add_scalars('val/DiceLoss', 
-                                {'Mean':val_mean_loss, 
-                                    'ET': mean_val_et_loss, 
-                                    'TC': mean_val_tc_loss, 
-                                    'WT': mean_val_wt_loss},
-                                epoch)
-
                 writer.add_scalars('val/Dice_coeff',
                                 {'Mean':val_scores['Dice_scores'][0],
                                     'ET': val_scores['Dice_scores'][1],
@@ -183,7 +183,6 @@ def train(model, Metrics, train_loader, val_loader, scaler, optimizer, scheduler
             
             end_time = time.time()
             val_cost_time = end_time - start_time
-
             
             """-------------------------------------- 打印指标 --------------------------------------------------"""
             metric_table_header = ["Metric_Name", "MEAN", "ET", "TC", "WT"]
