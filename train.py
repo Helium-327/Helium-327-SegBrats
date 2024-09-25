@@ -35,7 +35,12 @@ torch.cuda.manual_seed(RANDOM_SEED)                 #让显卡产生的随机数
 
 
 date_time_str = get_current_date() + ' ' + get_current_time()
-def train(model, Metrics, train_loader, val_loader, scaler, optimizer, scheduler, loss_function, num_epochs, device, results_dir, logs_path, start_epoch, best_val_loss, tb=False,  interval=10, save_max=10, early_stopping_patience=10):
+def train(model, Metrics, train_loader, val_loader, scaler, optimizer, scheduler, loss_function, 
+          num_epochs, device, results_dir, logs_path, start_epoch, best_val_loss, 
+          tb=False,  
+          interval=10, 
+          save_max=10, 
+          early_stopping_patience=10):
     """
     模型训练流程
     :param model: 模型
@@ -76,7 +81,7 @@ def train(model, Metrics, train_loader, val_loader, scaler, optimizer, scheduler
         mean_train_tc_loss = train_tc_loss / len(train_loader)
         mean_train_wt_loss = train_wt_loss / len(train_loader)
         
-        if scheduler_name == 'CosineAnnealingLR':
+        if scheduler_name == 'CosineAnnealingLR' and epoch > 20: # 从第20个epoch开始，使用余弦退火学习率
             scheduler.step()                    # 每种调度器的step方法不同，传入的参数也不一样
         writer.add_scalars('train/DiceLoss',
                            {'Mean':train_mean_loss, 

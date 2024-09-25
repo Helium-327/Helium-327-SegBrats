@@ -47,9 +47,10 @@ def main(args):
     start_epoch = 0
     best_val_loss = float('inf')
     
-    assert args.model in ['UNet_3d_22M_32', 'UNet_3d_22M_64', 'UNet_3d_48M', 'UNet_3d_90M', 'UNet3d_bn_256', 'UNet3d_bn_512', 'UNet_3d_ln', 'UNet_3d_ln2'], "Invalid model name"
-    
-    if args.model == 'UNet_3d_22M_64':
+    assert args.model in ['UNet3D', 'UNet_3d_22M_32', 'UNet_3d_22M_64', 'UNet_3d_48M', 'UNet_3d_90M', 'UNet3d_bn_256', 'UNet3d_bn_512', 'UNet_3d_ln', 'UNet_3d_ln2'], "Invalid model name"
+    if args.model == 'UNet3D':
+        model = UNet3D(4, 4, dropout_rate=0.1)
+    elif args.model == 'UNet_3d_22M_64':
         model = UNet_3d_22M_64(4, 4)
     elif args.model == 'UNet_3d_48M':
         model = UNet_3d_48M(4, 4)
@@ -74,10 +75,10 @@ def main(args):
         print(f"Resuming training from checkpoint {args.resume}")
         checkpoint = torch.load(args.resume)
         best_val_loss = checkpoint['best_val_loss']
-        start_epoch = checkpoint['epoch'] + 1
+        start_epoch = checkpoint['epoch']
         model.load_state_dict(checkpoint['model_state_dict'])
         print(f"Loaded checkpoint {args.resume}")
-        print(f"Best val loss: {best_val_loss:.4f} at epoch {start_epoch}")
+        print(f"Best val loss: {best_val_loss:.4f} ✈ epoch {start_epoch}")
     
     """------------------------------------- 获取数据列表csv --------------------------------------------"""
     train_csv = os.path.join(args.data_root, "train.csv")
@@ -118,6 +119,8 @@ def main(args):
     assert args.data_scale in ['debug', 'small', 'full'], "data_scale must be 'debug', 'small' or 'full'!"
     if args.data_scale == 'small':
         # 载入部分数据集
+        setattr(args, 'trainSet_len', 480)
+        setattr(args, 'valSet_len', 60)
         train_dataset = BraTS21_3d(train_csv, 
                                    transform=TransMethods_train,
                                    local_train=True, 
@@ -187,11 +190,11 @@ def main(args):
     assert args.loss in ['DiceLoss', 'CELoss', 'FocalLoss'], \
         f"loss must be 'DiceLoss' or 'CELoss' or 'FocalLoss', but got {args.loss}."
     if args.loss == 'CELoss':
-        loss_function = CELoss()
+        loss_function = CELoss(loss_type=args.loss_type)
     elif args.loss == 'FocalLoss':
-        loss_function = FocalLoss()
+        loss_function = FocalLoss(loss_type=args.loss_type)
     else:
-        loss_function = DiceLoss()
+        loss_function = DiceLoss(loss_type=args.loss_type)
     
     """--------------------------------------- 输出参数列表 --------------------------------------"""
     # 将参数转换成字典,并输出参数列表
@@ -206,10 +209,6 @@ def main(args):
     # 重定向输出
     custom_logger('='*40 + '\n' + "训练参数" +'\n' + '='*40 +'\n', logs_path, log_time=True)
     custom_logger(tabulate(params_dict, headers=params_header, tablefmt="grid"), logs_path)
-
-    # # 早停
-    # if args.stop_patience:
-    #     earlyStopping = EarlyStopping(model, patience=args.stop_patience)
     
     train(model, 
           Metrics=MetricsGo, 
@@ -237,28 +236,29 @@ if __name__ == "__main__":
     parser.add_argument("--results_root", type=str, default="./results", help="result path")
     parser.add_argument("--resume", type=str, default=None, help="resume training from checkpoint")
     
-    parser.add_argument("--model", type=str, default="UNet_3d_22M_32", help="model")
+    parser.add_argument("--model", type=str, default="UNet3D", help="models: ['UNet3D', 'UNet_3d_22M_32', 'UNet_3d_22M_64', 'UNet_3d_48M', 'UNet_3d_90M', 'UNet3d_bn_256', 'UNet3d_bn_512', 'UNet_3d_ln', 'UNet_3d_ln2']")
     parser.add_argument("--epochs", type=int, default=60, help="num_epochs")
     parser.add_argument("--nw", type=int, default=8, help="num_workers")
     parser.add_argument("--bs", type=int, default=2, help="batch_size")
-    parser.add_argument("--early_stop_patience", type=int, default=10, help="early stop patience")
+    parser.add_argument("--early_stop_patience", type=int, default=20, help="early stop patience")
     
     parser.add_argument("--input_channels", type=int, default=4, help="input channels")
     parser.add_argument("--output_channels", type=int, default=4, help="output channels")
     parser.add_argument("--trainCropSize", type=lambda x: tuple(map(int, x.split(','))), default=(128, 128, 128), help="crop size")
     parser.add_argument("--valCropSize", type=lambda x: tuple(map(int, x.split(','))), default=(128, 128, 128), help="crop size")
     
-    parser.add_argument("--loss", type=str, default="DiceLoss", help="loss function")
+    parser.add_argument("--loss", type=str, default="FocalLoss", help="loss function: ['DiceLoss', 'CELoss', 'FocalLoss']")
     parser.add_argument("--loss_type", type=str, default="custom", help="loss type to grad")
     parser.add_argument("--save_max", type=int, default=5, help="ckpt max save number")
 
-    parser.add_argument("--optimizer", type=str, default="AdamW", help="optimizer")
-    parser.add_argument("--lr", type=float, default=0.001, help="learning rate")
+    parser.add_argument("--optimizer", type=str, default="AdamW", help="optimizers: ['AdamW', 'SGD', 'RMSprop']")
+    parser.add_argument("--lr", type=float, default=0.002, help="learning rate")
     parser.add_argument("--wd", type=float, default=1e-4, help="weight decay")
 
-    parser.add_argument("--scheduler", type=str, default="CosineAnnealingLR", help="scheduler")
-    parser.add_argument("--cosine_min_lr", type=float, default=1e-5, help="CosineAnnealingLR min lr")
-    parser.add_argument("--cosine_T_max", type=float, default=30, help="CosineAnnealingLR T max")
+    parser.add_argument("--scheduler", type=str, default="CosineAnnealingLR", help="schedulers:['ReduceLROnPlateau', 'CosineAnnealingLR']")
+    parser.add_argument("--cosine_min_lr", type=float, default=1e-4, help="CosineAnnealingLR min lr")
+    parser.add_argument("--cosine_T_max", type=float, default=100, help="CosineAnnealingLR T max")
+    # parser.add_argument("--cosine_last_epoch", type=int, default=30, help="CosineAnnealingLR last epoch")
 
     parser.add_argument("--reduce_patience", type=int, default=3, help="ReduceLROnPlateau scheduler patience")
     parser.add_argument("--reduce_factor", type=float, default=0.9, help="ReduceLROnPlateau scheduler factor")
@@ -274,6 +274,6 @@ if __name__ == "__main__":
     parser.add_argument("--vs", type=float, default=0.1, help="val_split_rate")
     # parser.add_argument("--stop_patience", type=int, default=10, help="early stopping")
     
-    
+
     args = parser.parse_args()
     main(args=args)
