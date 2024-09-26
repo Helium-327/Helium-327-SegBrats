@@ -25,23 +25,31 @@ class _make_conv_layer(nn.Module):
         self.ln_spatial_shape = ln_spatial_shape
 
         # 卷积层
-        self.conv1 = nn.Conv3d(in_channels, out_channels, kernel_size=3, padding=1)
-        self.bn1 = nn.BatchNorm3d(out_channels)
-        self.ln1 = nn.LayerNorm([out_channels, *ln_spatial_shape]) # 解包
-        self.relu = nn.ReLU(inplace=True)
-        self.conv2 = nn.Conv3d(out_channels, out_channels, kernel_size=3, padding=1)
-        self.bn2 = nn.BatchNorm3d(out_channels)
-        self.ln2 = nn.LayerNorm([out_channels, *ln_spatial_shape])
-        self.relu = nn.ReLU(inplace=True)
+        if use_bn:
+            self.conv3x3 = nn.Sequential(
+                nn.Conv3d(in_channels, out_channels, kernel_size=3, padding=1),
+                nn.BatchNorm3d(out_channels),
+                nn.ReLU(inplace=True),
+                nn.Conv3d(out_channels, out_channels, kernel_size=3, padding=1),
+                nn.BatchNorm3d(out_channels),
+                nn.ReLU(inplace=True)
+            )
+        elif use_ln:
+            self.conv3x3 = nn.Sequential(
+                nn.Conv3d(in_channels, out_channels, kernel_size=3, padding=1),
+                nn.LayerNorm([out_channels, *ln_spatial_shape]),
+                nn.ReLU(inplace=True),
+                nn.Conv3d(out_channels, out_channels, kernel_size=3, padding=1),
+                nn.LayerNorm([out_channels, *ln_spatial_shape]),
+                nn.ReLU(inplace=True)
+            )
+        else:
+            raise"Error: no normalization layer is used!"
+
         self.dropout = nn.Dropout3d(self.dropout_rate)
 
     def forward(self, x):
-        if self.use_bn:
-            out = self.relu(self.bn2(self.conv2(self.relu(self.bn1(self.conv1(x))))))
-        elif self.use_ln:
-            out = self.relu(self.ln2(self.conv2(self.relu(self.ln1(self.conv1(x))))))
-        else:
-           raise"Error: no normalization layer is used!"
+        out = self.conv3x3(x)
         if self.use_dropout:
             out = self.dropout(out)
         return out
@@ -55,23 +63,31 @@ class _make_upsample_layer(nn.Module):
         self.dropout_rate = dropout_rate
         self.ln_spatial_shape = ln_spatial_shape
 
-        self.conv_trans = nn.ConvTranspose3d(in_channels, in_channels, kernel_size=2, stride=2)
-        self.bn1 = nn.BatchNorm3d(in_channels)
-        self.ln1 = nn.LayerNorm([in_channels, *(ln_spatial_shape*2)]) # 解包
-        self.relu = nn.ReLU(inplace=True)
-        self.conv = nn.Conv3d(in_channels, out_channels, kernel_size=3, padding=1)
-        self.bn2 = nn.BatchNorm3d(out_channels)
-        self.ln2 = nn.LayerNorm([out_channels, *(ln_spatial_shape*2)])
-        self.relu = nn.ReLU(inplace=True)
+        if use_bn:
+            self.up2times = nn.Sequential(
+                nn.ConvTranspose3d(in_channels, in_channels, kernel_size=2, stride=2),
+                nn.BatchNorm3d(in_channels),
+                nn.ReLU(inplace=True),
+                nn.Conv3d(in_channels, out_channels, kernel_size=3, padding=1),
+                nn.BatchNorm3d(out_channels),
+                nn.ReLU(inplace=True)
+            )
+        elif use_ln:
+            self.up2times = nn.Sequential(
+                nn.ConvTranspose3d(in_channels, in_channels, kernel_size=2, stride=2),
+                nn.LayerNorm([in_channels, *(2*ln_spatial_shape)]),
+                nn.ReLU(inplace=True),
+                nn.Conv3d(in_channels, out_channels, kernel_size=3, padding=1),
+                nn.LayerNorm([out_channels, *(2*ln_spatial_shape)]),
+                nn.ReLU(inplace=True)
+            )
+        else:
+            raise"Error: no normalization layer is used!"
+        
         self.dropout = nn.Dropout3d(self.dropout_rate)
 
     def forward(self, x):
-        if self.use_bn:
-            out = self.relu(self.bn2(self.conv(self.relu(self.bn1(self.conv_trans(x))))))
-        elif self.use_ln:
-            out = self.relu(self.ln2(self.conv(self.relu(self.ln1(self.conv_trans(x))))))
-        else:
-            raise"Error: no normalization layer is used!"
+        out = self.up2times(x)
         if self.use_dropout:
             out = self.dropout(out)
         return out
