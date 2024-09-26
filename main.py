@@ -49,7 +49,7 @@ def main(args):
     
     assert args.model in ['UNet3D', 'UNet_3d_22M_32', 'UNet_3d_22M_64', 'UNet_3d_48M', 'UNet_3d_90M', 'UNet3d_bn_256', 'UNet3d_bn_512', 'UNet_3d_ln', 'UNet_3d_ln2'], "Invalid model name"
     if args.model == 'UNet3D':
-        model = UNet3D(4, 4, dropout_rate=0.1)
+        model = UNet3D(4, 4)
     elif args.model == 'UNet_3d_22M_64':
         model = UNet_3d_22M_64(4, 4)
     elif args.model == 'UNet_3d_48M':
@@ -70,6 +70,11 @@ def main(args):
     init_weights_light(model)
     model.to(DEVICE)
 
+    # 计算模型参数量
+    total_params = sum(p.numel() for p in model.parameters())
+    total_params = f'{total_params/1024**2:.2f} M'
+    print(f"Total number of parameters: {total_params}")
+    setattr(args, 'total_parms', total_params)
     """------------------------------------- 断点续传 --------------------------------------------"""
     if args.resume:
         print(f"Resuming training from checkpoint {args.resume}")
@@ -273,7 +278,6 @@ if __name__ == "__main__":
     parser.add_argument("--ts", type=float, default=0.8, help="train_split_rata")
     parser.add_argument("--vs", type=float, default=0.1, help="val_split_rate")
     # parser.add_argument("--stop_patience", type=int, default=10, help="early stopping")
-    
-
+    parser.add_argument("--total_parms", type=int, default=None, required=False, help="total parameters")
     args = parser.parse_args()
     main(args=args)
