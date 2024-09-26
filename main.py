@@ -253,16 +253,16 @@ if __name__ == "__main__":
     parser.add_argument("--valCropSize", type=lambda x: tuple(map(int, x.split(','))), default=(128, 128, 128), help="crop size")
     
     parser.add_argument("--loss", type=str, default="DiceLoss", help="loss function: ['DiceLoss', 'CELoss', 'FocalLoss']")
-    parser.add_argument("--loss_type", type=str, default="mean", help="loss type to grad")
+    parser.add_argument("--loss_type", type=str, default="classes_custom", help="loss type to grad")
     parser.add_argument("--save_max", type=int, default=5, help="ckpt max save number")
 
     parser.add_argument("--optimizer", type=str, default="AdamW", help="optimizers: ['AdamW', 'SGD', 'RMSprop']")
-    parser.add_argument("--lr", type=float, default=0.002, help="learning rate")
+    parser.add_argument("--lr", type=float, default=0.001, help="learning rate")
     parser.add_argument("--wd", type=float, default=1e-4, help="weight decay")
 
     parser.add_argument("--scheduler", type=str, default="CosineAnnealingLR", help="schedulers:['ReduceLROnPlateau', 'CosineAnnealingLR']")
     parser.add_argument("--cosine_min_lr", type=float, default=1e-4, help="CosineAnnealingLR min lr")
-    parser.add_argument("--cosine_T_max", type=float, default=100, help="CosineAnnealingLR T max")
+    parser.add_argument("--cosine_T_max", type=int, default=100, help="CosineAnnealingLR T max")
     # parser.add_argument("--cosine_last_epoch", type=int, default=30, help="CosineAnnealingLR last epoch")
 
     parser.add_argument("--reduce_patience", type=int, default=3, help="ReduceLROnPlateau scheduler patience")
@@ -273,7 +273,7 @@ if __name__ == "__main__":
     parser.add_argument("--valSet_len", type=int, default=12, help="val length")
     parser.add_argument("--interval", type=int, default=1, help="checkpoint interval")
     
-    parser.add_argument("--tb", type=bool, default=False, help="TensorBoard True or False")
+    parser.add_argument("--tb", type=bool, default=True, help="TensorBoard True or False")
     parser.add_argument("--data_split", type=bool, default=False, help="data split True or False")
     parser.add_argument("--ts", type=float, default=0.8, help="train_split_rata")
     parser.add_argument("--vs", type=float, default=0.1, help="val_split_rate")

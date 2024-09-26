@@ -16,17 +16,14 @@ import os
 import numpy as np
 from torch.nn import functional as F
 from tabulate import tabulate
-from nets.unet3ds import UNet_3d_22M_32, UNet_3d_22M_64, UNet_3d_48M, UNet_3d_90M, init_weights_light, init_weights_pro
+from nets.unet3ds import *
 from readDatasets.BraTS import BraTS21_3d
 
 class EvaluationMetrics:
-    def __init__(self, smooth=1e-6, num_classes=4, bg_weight=0.2, ncr_weight=0.4, ed_weight = 0.2, et_weight = 0.2):
+    def __init__(self, smooth=1e-6, num_classes=4):
         self.smooth = smooth
         self.num_classes = num_classes
         self.sub_areas = ['ET', 'TC', 'WT']
-        self.w1 = et_weight
-        self.w2 = et_weight + ncr_weight
-        self.w3 = et_weight + ncr_weight + ed_weight
 
     def pre_processing(self, y_pred, y_mask):
         """
@@ -63,7 +60,7 @@ class EvaluationMetrics:
         assert y_pred.shape == y_mask.shape, "预测标签和真实标签的维度必须相同"
         tensor_one = torch.tensor(1)
         
-        # 计算混淆矩阵的元素
+        # 计算混淆矩阵的元素,在类别维度取平均
         TP = (y_pred * y_mask).sum(dim=(-3, -2, -1)) # 预测为正类，实际也为正类
         FN = ((tensor_one - y_pred)*y_mask).sum(dim=(-3, -2, -1)) # 预测为负类，实际为正类
         FP = (y_pred * (tensor_one - y_mask)).sum(dim=(-3, -2, -1)) # 预测为正类，实际为负类
@@ -160,13 +157,13 @@ class EvaluationMetrics:
 
         # 计算全局的recall
         TP, FN, _, _ = self.culculate_confusion_matrix(y_pred, y_mask)
-        recall = TP / (TP + FN)
+        recall = (TP + self.smooth) / (TP + FN + self.smooth)
         recall_scores['global mean recall'] = recall.mean()
 
         # 计算混淆矩阵的元素
         for sub_area, pred, mask in zip(self.sub_areas, pred_list, mask_list):
             TP, FN, _, _ = self.culculate_confusion_matrix(pred, mask)
-            recall = TP / (TP + FN)
+            recall = (TP + self.smooth) / (TP + FN + self.smooth)
             recall_scores[sub_area] = recall.mean()
         
         et_recall = recall_scores['ET'].item()
@@ -194,13 +191,13 @@ class EvaluationMetrics:
 
         # 计算全局的precision
         TP, _, FP, _ = self.culculate_confusion_matrix(y_pred, y_mask)
-        precision = TP / (TP + FP)
+        precision = (TP + self.smooth) / (TP + FP + self.smooth)
         precision_scores['global mean precision'] = precision.mean()
 
         # 计算混淆矩阵的元素
         for sub_area, pred, mask in zip(self.sub_areas, pred_list, mask_list):
             TP, _, FP, _ = self.culculate_confusion_matrix(pred, mask)
-            precision = TP / (TP + FP)
+            precision = (TP + self.smooth) / (TP + FP + self.smooth)
             precision_scores[sub_area] = precision.mean()
             
         
@@ -248,11 +245,6 @@ class EvaluationMetrics:
         :return: F1值
         """
         f1_scores = {}
-        # y_pred = torch.argmax(y_pred, dim=1).to(dtype=torch.int64) # 降维，选出概率最大的类索引值
-        # y_pred = F.one_hot(y_pred, num_classes=4).permute(0, 4, 1, 2, 3).float() # one-hot
-        # y_mask = F.one_hot(y_mask, num_classes=4).permute(0, 4, 1, 2, 3).float() # ont-hot
-        
-        # pred_list, mask_list = self.pre_processing(y_pred, y_mask)
         precision_list = self.precision(y_pred, y_mask)
         recall_list = self.recall(y_pred, y_mask)
         

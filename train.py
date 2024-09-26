@@ -22,7 +22,7 @@ from utils.get_commits import *
 from utils.run_shell_command import *
 
 # constant
-TB_PORT = 6007
+TB_PORT = 6006
 RANDOM_SEED = 42
 scheduler_start_epoch = 40
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -83,7 +83,7 @@ def train(model, Metrics, train_loader, val_loader, scaler, optimizer, scheduler
         
         if scheduler_name == 'CosineAnnealingLR' and epoch > scheduler_start_epoch: # 从第20个epoch开始，使用余弦退火学习率
             scheduler.step()                    # 每种调度器的step方法不同，传入的参数也不一样
-        writer.add_scalars(f'{loss_func_name}/val',
+        writer.add_scalars(f'{loss_func_name}/train',
                            {'Mean':train_mean_loss, 
                             'ET': mean_train_et_loss, 
                             'TC': mean_train_tc_loss, 

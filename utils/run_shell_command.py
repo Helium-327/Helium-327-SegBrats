@@ -33,11 +33,12 @@ def run_shell_command(command):
 
 def kill_port(PORT):
     print(f"正在清理端口占用...")
-    command = f"nohup kill -9 $(lsof -t -i:6007) > /dev/null 2>&1"
+    command = f"nohup kill -9 $(lsof -t -i:6006) > /dev/null 2>&1"
     results = run_shell_command(command)
     output, err = results.communicate()
+
     if results.returncode == 0:
-        print(f"🗑️ {PORT} 端口已被清空, {output}")
+        print(f"🗑️ 端口{PORT}已被清空, {output}")
     else:
         print(f"{err}")
     return results
@@ -57,5 +58,5 @@ def start_tensorboard(log_path, PORT=6006, HOST='0.0.0.0', tb=False):
         return f"❌TensorBoard 启动失败！ {err}"
 
 if __name__ == "__main__":
-    log_path = '/root/data/workspace/Helium-327-SegBrats/results/2024-09-25/10-46-15/tensorBoard/UNet3D_braTS21_2024-09-25 10-46-11'
-    start_tensorboard(log_path, PORT=6007, HOST='0.0.0.0', tb=False)
+    log_path = '/mnt/d/AI_Research/WS-HUB/WS-segBratsWorkflow/Helium-327-SegBrats/results/2024-09-26/09-34-20/tensorBoard/UNet3D_braTS21_2024-09-26_09-34-23'
+    start_tensorboard(log_path, PORT=6006, HOST='0.0.0.0', tb=False)
