@@ -45,29 +45,59 @@ class _make_conv_layer(nn.Module):
         if self.use_dropout:
             out = self.dropout(out)
         return out
-    
+
+class _make_upsample_layer(nn.Module):
+    def __init__(self, in_channels:int, out_channels:int, use_bn=True, use_ln=False, use_dropout=False, dropout_rate=0, ln_spatial_shape:list=[]):
+        super(_make_upsample_layer, self).__init__()    
+        self.use_bn = use_bn
+        self.use_ln = use_ln
+        self.use_dropout = use_dropout
+        self.dropout_rate = dropout_rate
+        self.ln_spatial_shape = ln_spatial_shape
+
+        self.conv_trans = nn.ConvTranspose3d(in_channels, in_channels, kernel_size=2, stride=2)
+        self.bn1 = nn.BatchNorm3d(in_channels)
+        self.ln1 = nn.LayerNorm([in_channels, *(ln_spatial_shape*2)]) # 解包
+        self.relu = nn.ReLU(inplace=True)
+        self.conv = nn.Conv3d(in_channels, out_channels, kernel_size=3, padding=1)
+        self.bn2 = nn.BatchNorm3d(out_channels)
+        self.ln2 = nn.LayerNorm([out_channels, *(ln_spatial_shape*2)])
+        self.relu = nn.ReLU(inplace=True)
+        self.dropout = nn.Dropout3d(self.dropout_rate)
+
+    def forward(self, x):
+        if self.use_bn:
+            out = self.relu(self.bn2(self.conv(self.relu(self.bn1(self.conv_trans(x))))))
+        elif self.use_ln:
+            out = self.relu(self.ln2(self.conv(self.relu(self.ln1(self.conv_trans(x))))))
+        else:
+            raise"Error: no normalization layer is used!"
+        if self.use_dropout:
+            out = self.dropout(out)
+        return out
+
 class UNet3D(nn.Module):
     def __init__(self, in_channels:int, out_channels:int, dropout_rate:float=0, use_bn:bool=True, use_ln:bool=False, use_dropout:bool=False, ln_spatial_shape:list=[]):
         super(UNet3D, self).__init__()     
         self.dropout_rate = dropout_rate
-        self.encoder_use_list = (use_bn, use_ln, use_dropout, dropout_rate)
-        self.decoder_use_list = (use_bn, use_ln, False, dropout_rate)
+        self.encoder_use_list = (use_bn, use_ln, True, 0.1)
+        self.decoder_use_list = (use_bn, use_ln, False, 0.1)
         # 编码器
         self.encoder1 = _make_conv_layer(in_channels, 32, * self.encoder_use_list)
-        self.encoder2 = _make_conv_layer(32, 64, * self.encoder_use_list)
-        self.encoder3 = _make_conv_layer(64, 128, * self.encoder_use_list)
-        self.encoder4 = _make_conv_layer(128, 256, * self.encoder_use_list)
-        self.encoder5 = _make_conv_layer(256, 512, * self.encoder_use_list)
+        self.encoder2 = _make_conv_layer(32, 64, *self.encoder_use_list)
+        self.encoder3 = _make_conv_layer(64, 128, *self.encoder_use_list)
+        self.encoder4 = _make_conv_layer(128, 256, *self.encoder_use_list)
+        self.encoder5 = _make_conv_layer(256, 512, *self.encoder_use_list)
 
         # 解码器
         self.decoder1 = _make_conv_layer(512, 256, *self.decoder_use_list)
-        self.up1 = nn.ConvTranspose3d(512, 256, kernel_size=2, stride=2)
+        self.up1      = _make_upsample_layer(512, 256, *self.decoder_use_list)
         self.decoder2 = _make_conv_layer(256, 128, *self.decoder_use_list)
-        self.up2 = nn.ConvTranspose3d(256, 128, kernel_size=2, stride=2)
+        self.up2      = _make_upsample_layer(256, 128, *self.decoder_use_list)
         self.decoder3 = _make_conv_layer(128, 64, *self.decoder_use_list)
-        self.up3 = nn.ConvTranspose3d(128, 64, kernel_size=2, stride=2)
+        self.up3      = _make_upsample_layer(128, 64, *self.decoder_use_list)
         self.decoder4 = _make_conv_layer(64, 32, *self.decoder_use_list)
-        self.up4 = nn.ConvTranspose3d(64, 32, kernel_size=2, stride=2)
+        self.up4      = _make_upsample_layer(64, 32, *self.decoder_use_list)
 
         # 输出层
         self.output_conv = nn.Conv3d(32, out_channels, kernel_size=1)
