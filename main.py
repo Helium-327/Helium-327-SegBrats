@@ -16,6 +16,7 @@ from readDatasets.BraTS import BraTS21_3d
 from transforms import data_transform, Compose, RandomCrop3D, Normalize, tioRandomNoise3d, tioRandomGamma3d, tioRandomFlip3d
 from utils.log_writer import *
 from utils.splitDataList import DataSpliter
+from utils.reload_tb_events import *
 from metrics import EvaluationMetrics
 
 
@@ -29,24 +30,35 @@ scaler = GradScaler() # 混合精度训练
 MetricsGo = EvaluationMetrics() # 实例化评估指标类
 
 def main(args):
+    start_epoch = 0
+    best_val_loss = float('inf')
+    resume_tb_path = None
+
+    """------------------------------------- 定义或获取路径 --------------------------------------------"""
+    if args.resume: # 如果断点续传可用，则使用断点续训的路径  # TODO: 断点续传
+        resume_path = args.resume
+        print(f"Resuming training from {resume_path}")
+        results_dir = ('/').join(resume_path.split('/')[:-2])
+        resume_tb_path = os.path.join(results_dir, 'tensorBoard')
+        logs_dir = os.path.join(results_dir, 'logs')
+        logs_file_name = [file for file in os.listdir(logs_dir) if file.endswith('.log')]
+        logs_path = os.path.join(logs_dir, logs_file_name[0])
+    else:
+        # 创建结果保存路径
+        os.makedirs(args.results_root, exist_ok=True)
+        results_dir = os.path.join(args.results_root, get_current_date())
+        results_dir = create_folder(results_dir) # 创建时间文件夹
+
+        logs_dir = os.path.join(results_dir, 'logs')
+        logs_path = os.path.join(logs_dir, f'{get_current_date()}.log')
+        os.makedirs(logs_dir, exist_ok=True)
+
     """------------------------------------- 记录当前实验内容 --------------------------------------------"""
     exp_commit = input("请输入本次实验的更改内容: ")
-
-    # 创建结果保存路径
-    os.makedirs(args.results_root, exist_ok=True)
-    results_dir = os.path.join(args.results_root, get_current_date())
-    results_dir = create_folder(results_dir) # 创建时间文件夹
-
-    logs_dir = os.path.join(results_dir, 'logs')
-    logs_path = os.path.join(logs_dir, f'{get_current_date()}.log')
-    os.makedirs(logs_dir, exist_ok=True)
-
     write_commit_file(os.path.join(results_dir,'commits.md'), exp_commit)
 
     """------------------------------------- 模型实例化、初始化 --------------------------------------------"""
-    start_epoch = 0
-    best_val_loss = float('inf')
-    
+
     assert args.model in ['UNet3D', 'UNet_3d_22M_32', 'UNet_3d_22M_64', 'UNet_3d_48M', 'UNet_3d_90M', 'UNet3d_bn_256', 'UNet3d_bn_512', 'UNet_3d_ln', 'UNet_3d_ln2'], "Invalid model name"
     if args.model == 'UNet3D':
         model = UNet3D(4, 4)
@@ -84,6 +96,8 @@ def main(args):
         model.load_state_dict(checkpoint['model_state_dict'])
         print(f"Loaded checkpoint {args.resume}")
         print(f"Best val loss: {best_val_loss:.4f} ✈ epoch {start_epoch}")
+        cutoff_tb_data(resume_tb_path, start_epoch)
+        print(f"Refix resume tb data step {resume_tb_path} up to step {start_epoch}")
     
     """------------------------------------- 获取数据列表csv --------------------------------------------"""
     train_csv = os.path.join(args.data_root, "train.csv")
@@ -232,7 +246,8 @@ def main(args):
           tb=args.tb,
           interval=args.interval,
           save_max=args.save_max,
-          early_stopping_patience=args.early_stop_patience)
+          early_stopping_patience=args.early_stop_patience,
+          resume_tb_path=resume_tb_path)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train args")
