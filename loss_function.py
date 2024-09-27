@@ -50,7 +50,7 @@ class DiceLoss:
 
         elif self.loss_type =='classes_custom':         #TODO: 为每一类loss单独设置权重，消除类不平衡对于损失函数的影响
             bg_loss, ncr_loss, ed_loss, et_loss = self.get_every_class_loss(y_pred, y_mask)
-            loss = self.w_bg * bg_loss + self.w1 * ed_loss  + self.w2 * ncr_loss + self.w3 * et_loss
+            loss = self.w_bg * bg_loss + self.w1 * ed_loss + self.w2 * ncr_loss + self.w3 * et_loss
         else:
             intersection = (y_pred * y_mask).sum(dim=(-3, -2, -1))
             union = y_pred.sum(dim=(-3, -2, -1)) + y_mask.sum(dim=(-3, -2, -1))

@@ -39,7 +39,8 @@ def train(model, Metrics, train_loader, val_loader, scaler, optimizer, scheduler
           tb=False,  
           interval=10, 
           save_max=10, 
-          early_stopping_patience=10):
+          early_stopping_patience=10,
+          resume_tb_path=None):
     """
     模型训练流程
     :param model: 模型
@@ -59,8 +60,11 @@ def train(model, Metrics, train_loader, val_loader, scaler, optimizer, scheduler
     optimizer_name = optimizer.__class__.__name__
     scheduler_name = scheduler.__class__.__name__
     loss_func_name = loss_function.__class__.__name__
-    tb_dir = os.path.join(results_dir, f'tensorBoard/{model_name}_braTS21_{date_time_str}')
-    ckpt_dir = os.path.join(results_dir, f'checkpoints/{model_name}_braTS21_{date_time_str}')
+    if resume_tb_path:
+        tb_dir = resume_tb_path
+    else:
+        tb_dir = os.path.join(results_dir, f'tensorBoard')
+    ckpt_dir = os.path.join(results_dir, f'checkpoints')
     os.makedirs(ckpt_dir, exist_ok=True)
     writer = SummaryWriter(tb_dir)
     
@@ -238,7 +242,7 @@ def train(model, Metrics, train_loader, val_loader, scaler, optimizer, scheduler
                     
                 # 保存最佳模型
                 save_counter += 1
-                best_ckpt_path = os.path.join(ckpt_dir, f'best@epoch{best_epoch}_{loss_func_name.lower()}{best_val_loss:.4f}_dice{best_dice:.4f}_{save_counter}.pth')
+                best_ckpt_path = os.path.join(ckpt_dir, f'{model_name}_best_ckpt@epoch{best_epoch}_{loss_func_name.lower()}{best_val_loss:.4f}_dice{best_dice:.4f}_{save_counter}.pth')
                 if save_counter > save_max:
                     removed_ckpt = [ckpt for ckpt in os.listdir(ckpt_dir) if (ckpt.endswith('.pth') and (int(ckpt.split('.')[-2].split('_')[-1]) == int(save_counter - save_max)))] # 获取要删除的文件名
                     os.remove(os.path.join(ckpt_dir, removed_ckpt[0]))
