@@ -22,7 +22,7 @@ from utils.get_commits import *
 from utils.run_shell_command import *
 
 # constant
-TB_PORT = 6006
+TB_PORT = 6007
 RANDOM_SEED = 42
 scheduler_start_epoch = 40
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
