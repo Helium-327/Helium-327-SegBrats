@@ -49,6 +49,7 @@ def kill_port(PORT):
 def start_tensorboard(log_path, PORT=6006, HOST='0.0.0.0'):
     """
     启动TensorBoard面板
+    确保是在cv环境下运行，否则无法启动
     """
     if not kill_port(PORT):
         return(f"清理端口{PORT}失败，启动TensorBoard失败。")      
@@ -62,5 +63,5 @@ def start_tensorboard(log_path, PORT=6006, HOST='0.0.0.0'):
             print(f"😃 TensorBoard 启动成功！\n请访问 localhost:{PORT} 查看TensorBoard面板。")
 
 if __name__ == "__main__":
-    log_path = '/mnt/d/AI_Research/WS-HUB/WS-segBratsWorkflow/Helium-327-SegBrats/results/2024-09-25/20-34-16/tensorBoard/UNet3D_braTS21_2024-09-25_20-34-16'
-    start_tensorboard(log_path, PORT=6006, HOST='0.0.0.0')
+    log_path = '/mnt/d/AI_Research/WS-HUB/WS-segBratsWorkflow/Helium-327-SegBrats/results/2024-09-27/2024-09-27_20-23-16/tensorBoard'
+    start_tensorboard(log_path, PORT=6009, HOST='0.0.0.0')

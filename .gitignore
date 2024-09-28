@@ -2,7 +2,7 @@
 *.nii.gz
 *.pth
 *.csv
-__pycache__
+__pycache__/*
 
 
 

@@ -9,13 +9,13 @@ from torch.optim import Adam, SGD, RMSprop, AdamW
 from torch.optim.lr_scheduler import ReduceLROnPlateau, CosineAnnealingLR
 from torch.amp import GradScaler
 
-from nets.unet3ds import *
+from nets.unet3d.unet3d import *
 from loss_function import DiceLoss, CELoss, FocalLoss
 from utils.get_commits import *
 from readDatasets.BraTS import BraTS21_3d
 from transforms import data_transform, Compose, RandomCrop3D, Normalize, tioRandomNoise3d, tioRandomGamma3d, tioRandomFlip3d
 from utils.log_writer import *
-from utils.splitDataList import DataSpliter
+from utils.split_dataList import dataSpliter
 from utils.reload_tb_events import *
 from metrics import EvaluationMetrics
 
@@ -59,25 +59,8 @@ def main(args):
 
     """------------------------------------- 模型实例化、初始化 --------------------------------------------"""
 
-    assert args.model in ['UNet3D', 'UNet_3d_22M_32', 'UNet_3d_22M_64', 'UNet_3d_48M', 'UNet_3d_90M', 'UNet3d_bn_256', 'UNet3d_bn_512', 'UNet_3d_ln', 'UNet_3d_ln2'], "Invalid model name"
     if args.model == 'UNet3D':
         model = UNet3D(4, 4)
-    elif args.model == 'UNet_3d_22M_64':
-        model = UNet_3d_22M_64(4, 4)
-    elif args.model == 'UNet_3d_48M':
-        model = UNet_3d_48M(4, 4)
-    elif args.model == 'UNet_3d_90M':
-        model = UNet_3d_90M(4, 4)
-    elif args.model == 'UNet_3d_ln':
-        model = UNet_3d_ln(4, 4)
-    elif args.model == 'UNet_3d_ln2':
-        model = UNet_3d_ln2(4, 4)
-    elif args.model == 'UNet3d_bn_256':
-        model = UNet3d_bn_256(4, 4)
-    elif args.model == 'UNet3d_bn_512':
-        model = UNet3d_bn_512(4, 4)
-    else:
-        model = UNet_3d_22M_32(4, 4)
     
     init_weights_light(model)
     model.to(DEVICE)
@@ -109,7 +92,7 @@ def main(args):
     
     """------------------------------------- 划分数据集 --------------------------------------------"""
     if args.data_split:
-        dataSpliter =  DataSpliter(path_data, train_split=args.ts, val_split=args.vs, seed=RANDOM_SEED)
+        dataSpliter =  dataSpliter(path_data, train_split=args.ts, val_split=args.vs, seed=RANDOM_SEED)
         train_list, test_list, val_list = dataSpliter.data_split()
         dataSpliter.save_as_csv(train_list, train_csv)
         dataSpliter.save_as_csv(test_list, val_csv)
@@ -196,14 +179,15 @@ def main(args):
     
 
     """------------------------------------- 调度器 --------------------------------------------"""
-    assert args.scheduler in ['ReduceLROnPlateau', 'CosineAnnealingLR'], \
-        f"scheduler must be 'ReduceLROnPlateau' or 'CosineAnnealingLR', but got {args.scheduler}."
     if args.scheduler == 'ReduceLROnPlateau':
         scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=args.reduce_factor, patience=args.reduce_patience)
-    else:
+    elif args.scheduler == 'CosineAnnealingLR':
         scheduler = CosineAnnealingLR(optimizer, T_max=args.cosine_T_max, eta_min=args.cosine_min_lr)
         delattr(args, 'reduce_patience')
         delattr(args, 'reduce_factor')
+    else:
+        scheduler = None
+    
     
     """------------------------------------- 损失函数 --------------------------------------------"""
     assert args.loss in ['DiceLoss', 'CELoss', 'FocalLoss'], \
@@ -257,6 +241,7 @@ if __name__ == "__main__":
     parser.add_argument("--resume", type=str, default=None, help="resume training from checkpoint")
     
     parser.add_argument("--model", type=str, default="UNet3D", help="models: ['UNet3D', 'UNet_3d_22M_32', 'UNet_3d_22M_64', 'UNet_3d_48M', 'UNet_3d_90M', 'UNet3d_bn_256', 'UNet3d_bn_512', 'UNet_3d_ln', 'UNet_3d_ln2']")
+    parser.add_argument("--total_parms", type=int, default=None, required=False, help="total parameters")
     parser.add_argument("--epochs", type=int, default=60, help="num_epochs")
     parser.add_argument("--nw", type=int, default=8, help="num_workers")
     parser.add_argument("--bs", type=int, default=2, help="batch_size")
@@ -292,7 +277,5 @@ if __name__ == "__main__":
     parser.add_argument("--data_split", type=bool, default=False, help="data split True or False")
     parser.add_argument("--ts", type=float, default=0.8, help="train_split_rata")
     parser.add_argument("--vs", type=float, default=0.1, help="val_split_rate")
-    # parser.add_argument("--stop_patience", type=int, default=10, help="early stopping")
-    parser.add_argument("--total_parms", type=int, default=None, required=False, help="total parameters")
     args = parser.parse_args()
     main(args=args)

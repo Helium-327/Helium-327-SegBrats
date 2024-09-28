@@ -13,7 +13,7 @@ from torch.nn import functional as F
 import torch
 
 class DiceLoss:
-    def __init__(self, loss_type='subarea_custom', smooth=1e-5, w_bg=0.1, w1=0.2, w2=0.3, w3=0.4):
+    def __init__(self, loss_type='subarea_custom', smooth=1e-5, w_bg=0.2, w1=0.2, w2=0.2, w3=0.4):
         """
         初始化函数:
         :param smooth: 平滑因子
