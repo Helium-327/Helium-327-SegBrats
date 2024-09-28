@@ -11,7 +11,7 @@ import os
 import random
 import pandas as pd
 
-class DataSpliter:
+class dataSpliter:
     def __init__(self, data_root, train_split=0.8, val_split=0.1, seed=42):
         self.data_root = data_root
         self.train_split = train_split

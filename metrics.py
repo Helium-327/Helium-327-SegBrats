@@ -16,7 +16,7 @@ import os
 import numpy as np
 from torch.nn import functional as F
 from tabulate import tabulate
-from nets.unet3ds import *
+from nets.unet3d.unet3d import *
 from readDatasets.BraTS import BraTS21_3d
 
 class EvaluationMetrics:
