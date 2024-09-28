@@ -10,10 +10,11 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau, CosineAnnealingLR
 from torch.amp import GradScaler
 
 from nets.unet3d.unet3d import *
+from nets.model_weights_init import init_weights_light
 from loss_function import DiceLoss, CELoss, FocalLoss
 from utils.get_commits import *
 from readDatasets.BraTS import BraTS21_3d
-from transforms import data_transform, Compose, RandomCrop3D, Normalize, tioRandomNoise3d, tioRandomGamma3d, tioRandomFlip3d
+from transforms import *
 from utils.log_writer import *
 from utils.split_dataList import dataSpliter
 from utils.reload_tb_events import *
@@ -114,8 +115,9 @@ def main(args):
                                       ]))
     
     TransMethods_val = data_transform(transform=Compose([RandomCrop3D(size=args.valCropSize),    # 随机裁剪
-                                                         Normalize(mean=(0.114, 0.090, 0.170, 0.096), std=(0.199, 0.151, 0.282, 0.174)),   # 标准化
+                                                        #  tioZNormalization(),               # 归一化
                                                          tioRandomFlip3d(),   
+                                                         Normalize(mean=(0.114, 0.090, 0.170, 0.096), std=(0.199, 0.151, 0.282, 0.174)),   # 标准化
                                       ]))
     
     assert args.data_scale in ['debug', 'small', 'full'], "data_scale must be 'debug', 'small' or 'full'!"
@@ -187,17 +189,21 @@ def main(args):
         delattr(args, 'reduce_factor')
     else:
         scheduler = None
+        delattr(args,'reduce_patience')
+        delattr(args,'reduce_factor')
+        delattr(args,'cosine_T_max')
+        delattr(args,'cosine_min_lr')
     
     
     """------------------------------------- 损失函数 --------------------------------------------"""
     assert args.loss in ['DiceLoss', 'CELoss', 'FocalLoss'], \
         f"loss must be 'DiceLoss' or 'CELoss' or 'FocalLoss', but got {args.loss}."
     if args.loss == 'CELoss':
-        loss_function = CELoss(loss_type=args.loss_type)
+        loss_function = CELoss()
     elif args.loss == 'FocalLoss':
-        loss_function = FocalLoss(loss_type=args.loss_type)
+        loss_function = FocalLoss()
     else:
-        loss_function = DiceLoss(loss_type=args.loss_type)
+        loss_function = DiceLoss()
     
     """--------------------------------------- 输出参数列表 --------------------------------------"""
     # 将参数转换成字典,并输出参数列表
@@ -253,14 +259,14 @@ if __name__ == "__main__":
     parser.add_argument("--valCropSize", type=lambda x: tuple(map(int, x.split(','))), default=(128, 128, 128), help="crop size")
     
     parser.add_argument("--loss", type=str, default="DiceLoss", help="loss function: ['DiceLoss', 'CELoss', 'FocalLoss']")
-    parser.add_argument("--loss_type", type=str, default="classes_custom", help="loss type to grad")
+    # parser.add_argument("--loss_type", type=str, default="subarea_custom", help="loss type to grad")
     parser.add_argument("--save_max", type=int, default=5, help="ckpt max save number")
 
-    parser.add_argument("--optimizer", type=str, default="AdamW", help="optimizers: ['AdamW', 'SGD', 'RMSprop']")
+    parser.add_argument("--optimizer", type=str, default="SGD", help="optimizers: ['AdamW', 'SGD', 'RMSprop']")
     parser.add_argument("--lr", type=float, default=0.001, help="learning rate")
     parser.add_argument("--wd", type=float, default=1e-4, help="weight decay")
 
-    parser.add_argument("--scheduler", type=str, default="CosineAnnealingLR", help="schedulers:['ReduceLROnPlateau', 'CosineAnnealingLR']")
+    parser.add_argument("--scheduler", type=str, default=None, help="schedulers:['ReduceLROnPlateau', 'CosineAnnealingLR']")
     parser.add_argument("--cosine_min_lr", type=float, default=1e-4, help="CosineAnnealingLR min lr")
     parser.add_argument("--cosine_T_max", type=int, default=100, help="CosineAnnealingLR T max")
     # parser.add_argument("--cosine_last_epoch", type=int, default=30, help="CosineAnnealingLR last epoch")
@@ -268,7 +274,7 @@ if __name__ == "__main__":
     parser.add_argument("--reduce_patience", type=int, default=3, help="ReduceLROnPlateau scheduler patience")
     parser.add_argument("--reduce_factor", type=float, default=0.9, help="ReduceLROnPlateau scheduler factor")
     
-    parser.add_argument("--data_scale", type=str, default="debug", help="loading data scale")
+    parser.add_argument("--data_scale", type=str, default="full", help="loading data scale")
     parser.add_argument("--trainSet_len", type=int, default=100, help="train length")
     parser.add_argument("--valSet_len", type=int, default=12, help="val length")
     parser.add_argument("--interval", type=int, default=1, help="checkpoint interval")

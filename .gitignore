@@ -1,9 +1,10 @@
+__pycache__
+*.pyc
+*.pyo
 *.jpg
 *.nii.gz
 *.pth
 *.csv
-__pycache__/*
-
 
 
 brats21_local/

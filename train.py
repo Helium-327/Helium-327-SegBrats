@@ -10,6 +10,7 @@
 import os
 import time
 import torch
+import logging
 import readline # 解决input()无法使用Backspace的问题, ⚠️不能删掉
 from tabulate import tabulate
 from torch.utils.tensorboard import SummaryWriter
@@ -18,6 +19,8 @@ from train_and_val import train_one_epoch, val_one_epoch
 from utils.log_writer import custom_logger
 from utils.ckpt_save_load import save_checkpoint, load_checkpoint
 from nets.unet3d.unet3d import *
+
+
 from utils.get_commits import *
 from utils.run_shell_command import *
 
@@ -33,6 +36,12 @@ torch.backends.cudnn.deterministic = True
 
 torch.manual_seed(RANDOM_SEED)
 torch.cuda.manual_seed(RANDOM_SEED)                 #让显卡产生的随机数一致
+
+logger = logging.getLogger(__name__)
+
+# 定义日志格式
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
 
 def train(model, Metrics, train_loader, val_loader, scaler, optimizer, scheduler, loss_function, 
           num_epochs, device, results_dir, logs_path, start_epoch, best_val_loss, 
@@ -66,6 +75,14 @@ def train(model, Metrics, train_loader, val_loader, scaler, optimizer, scheduler
         tb_dir = os.path.join(results_dir, f'tensorBoard')
     ckpt_dir = os.path.join(results_dir, f'checkpoints')
     os.makedirs(ckpt_dir, exist_ok=True)
+
+    if scheduler:
+        current_lr = scheduler.get_last_lr()[0]
+    else:
+        current_lr = optimizer.param_groups[0]["lr"]
+    # 初始化日志
+    logger.info(f'开始训练, 训练轮数:{num_epochs}, {model_name}模型写入tensorBoard, 使用 {optimizer_name} 优化器, 学习率: {current_lr}, 损失函数: {loss_func_name}')
+
     writer = SummaryWriter(tb_dir)
     
     # 添加模型结构到tensorboard
@@ -187,7 +204,7 @@ def train(model, Metrics, train_loader, val_loader, scaler, optimizer, scheduler
                             f"- Optimizer:{optimizer_name}\n"\
                             f"- Scheduler:{scheduler_name}\n"\
                             f"- LossFunc: {loss_func_name}\n"\
-                            f"- Lr:       {scheduler.get_last_lr()[0]:.6f}\n"\
+                            f"- Lr:       {current_lr:.6f}\n"\
                             f"- val_cost_time:{val_cost_time:.4f}s ⏱️\n"
 
             # 优化点：直接通过映射获取指标名称，避免重复字符串格式化
@@ -220,7 +237,7 @@ def train(model, Metrics, train_loader, val_loader, scaler, optimizer, scheduler
                 with open(os.path.join(os.path.dirname(logs_path), "current_log.txt"), 'a') as f:
                     f.write(f"=== Best EPOCH {best_epoch} ===:\n"\
                             f"@ {get_current_date() + ' ' + get_current_time()}\n"\
-                            f"current lr : {scheduler.get_last_lr()[0]:.6f}\n"\
+                            f"current lr : {current_lr:.6f}\n"\
                             f"loss: Mean:{val_mean_loss:.4f}\t ET: {mean_val_et_loss:.4f}\t TC: {mean_val_tc_loss:.4f}\t WT: {mean_val_wt_loss:.4f}\n"
                             f"mean dice : {val_scores['Dice_scores'][0]:.4f}\t" \
                             f"ET : {val_scores['Dice_scores'][1]:.4f}\t"\
