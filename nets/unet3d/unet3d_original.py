@@ -3,9 +3,9 @@ import torch
 
 
 
-class UNet3D(nn.Module):
+class UNet3D_original(nn.Module):
     def __init__(self, in_channels, num_classes, dropout_p=0):
-        super(UNet3D, self).__init__()
+        super(UNet3D_original, self).__init__()
         # self.ker_init = nn.init.he_normal_
         self.dropout_p = dropout_p
         self.maxPooling = nn.MaxPool3d(kernel_size=2, stride=2)
@@ -127,8 +127,6 @@ class UNet3D(nn.Module):
         
         self.ConvOutput = nn.Conv3d(32, num_classes, kernel_size=1)
         self.softmax = nn.Softmax(dim=1)
-        self.initialize_weights(init_type='kaiming_normal')
-        
         
     def forward(self, x):
         input_layer = self.Conv1(x)  # 2 x 128 x 128 ----> 32 x 128 x 128
@@ -139,8 +137,9 @@ class UNet3D(nn.Module):
         down_ouput = self.Conv5(down4) # 512 x 8 x 8
         
         if self.dropout_p > 0:
-            dropout_output = self.dropout(down_ouput) # 512 x 8 x 8
-        up1 = self.upSampling3d_1(dropout_output) # 256 x 16 x 16
+            down_ouput = self.dropout(down_ouput) # 512 x 8 x 8
+            
+        up1 = self.upSampling3d_1(down_ouput) # 256 x 16 x 16
         up1_cat_down4 = torch.cat([up1, self.Conv4(down3)], dim=1) # [256 x 16 x 16, 256 x 16 x 16] ----> 512 x 16 x 16
         up2 = self.Conv6(up1_cat_down4) # 256 x 32 x 32
         up3 = self.upSampling3d_2(up2) # 128 x 32 x 32

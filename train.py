@@ -73,6 +73,10 @@ def train(model, Metrics, train_loader, val_loader, scaler, optimizer, scheduler
     print(f'{model_name}模型写入tensorBoard, 使用 {optimizer_name} 优化器, 学习率: {optimizer.param_groups[0]["lr"]}, 损失函数: {loss_func_name}')
     for epoch in range(start_epoch, end_epoch):
         epoch += 1
+        if scheduler:
+            current_lr = scheduler.get_last_lr()[0]
+        else:
+            current_lr = optimizer.param_groups[0]["lr"]
         """-------------------------------------- 训练过程 --------------------------------------------------"""
         print(f"=== Training on [Epoch {epoch}/{end_epoch}] ===:")
         
@@ -182,12 +186,14 @@ def train(model, Metrics, train_loader, val_loader, scaler, optimizer, scheduler
             """-------------------------------------- 打印指标 --------------------------------------------------"""
             metric_table_header = ["Metric_Name", "MEAN", "ET", "TC", "WT"]
             metric_table_left = ["Dice", "Jaccard", "Accuracy", "Precision", "Recall", "F1", "F2"]
+
+
             val_info_str =  f"=== [Epoch {epoch}/{end_epoch}] ===\n"\
                             f"- Model:    {model_name}\n"\
                             f"- Optimizer:{optimizer_name}\n"\
                             f"- Scheduler:{scheduler_name}\n"\
                             f"- LossFunc: {loss_func_name}\n"\
-                            f"- Lr:       {scheduler.get_last_lr()[0]:.6f}\n"\
+                            f"- Lr:       {current_lr:.6f}\n"\
                             f"- val_cost_time:{val_cost_time:.4f}s ⏱️\n"
 
             # 优化点：直接通过映射获取指标名称，避免重复字符串格式化
@@ -220,7 +226,7 @@ def train(model, Metrics, train_loader, val_loader, scaler, optimizer, scheduler
                 with open(os.path.join(os.path.dirname(logs_path), "current_log.txt"), 'a') as f:
                     f.write(f"=== Best EPOCH {best_epoch} ===:\n"\
                             f"@ {get_current_date() + ' ' + get_current_time()}\n"\
-                            f"current lr : {scheduler.get_last_lr()[0]:.6f}\n"\
+                            f"current lr : {current_lr:.6f}\n"\
                             f"loss: Mean:{val_mean_loss:.4f}\t ET: {mean_val_et_loss:.4f}\t TC: {mean_val_tc_loss:.4f}\t WT: {mean_val_wt_loss:.4f}\n"
                             f"mean dice : {val_scores['Dice_scores'][0]:.4f}\t" \
                             f"ET : {val_scores['Dice_scores'][1]:.4f}\t"\

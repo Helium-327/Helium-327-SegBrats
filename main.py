@@ -9,7 +9,11 @@ from torch.optim import Adam, SGD, RMSprop, AdamW
 from torch.optim.lr_scheduler import ReduceLROnPlateau, CosineAnnealingLR
 from torch.amp import GradScaler
 
-from nets.unet3d.unet3d import *
+from nets.unet3d.unet3d import UNet3D
+from nets.unet3d.unet3d_original import UNet3D_original
+
+from nets.model_weights_init import *
+
 from loss_function import DiceLoss, CELoss, FocalLoss
 from utils.get_commits import *
 from readDatasets.BraTS import BraTS21_3d
@@ -18,7 +22,6 @@ from utils.log_writer import *
 from utils.split_dataList import dataSpliter
 from utils.reload_tb_events import *
 from metrics import EvaluationMetrics
-
 
 os.environ["CUDA_LAUNCH_BLOCKING"] = '1'
 torch.backends.cudnn.benchmark = True
@@ -61,7 +64,11 @@ def main(args):
 
     if args.model == 'UNet3D':
         model = UNet3D(4, 4)
-    
+    elif args.model == 'UNet3D_original':
+        model = UNet3D_original(4, 4)
+    else:
+        raise ValueError(f"Invalid model name: {args.model}")
+
     init_weights_light(model)
     model.to(DEVICE)
 
@@ -107,9 +114,9 @@ def main(args):
                                                         tioRandomFlip3d(),                 # 随机翻转
                                                         # tioRandomElasticDeformation3d(),
                                                         # tioZNormalization(),               # 归一化
+                                                        Normalize(mean=(0.114, 0.090, 0.170, 0.096), std=(0.199, 0.151, 0.282, 0.174)),   # 标准化
                                                         tioRandomNoise3d(),
                                                         tioRandomGamma3d(),    
-                                                        Normalize(mean=(0.114, 0.090, 0.170, 0.096), std=(0.199, 0.151, 0.282, 0.174)),   # 标准化
                                                         # tioRandomAffine(),          # 随机旋转
                                       ]))
     
@@ -182,11 +189,16 @@ def main(args):
     if args.scheduler == 'ReduceLROnPlateau':
         scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=args.reduce_factor, patience=args.reduce_patience)
     elif args.scheduler == 'CosineAnnealingLR':
-        scheduler = CosineAnnealingLR(optimizer, T_max=args.cosine_T_max, eta_min=args.cosine_min_lr)
+        scheduler = CosineAnnealingLR(optimizer, T_max=args.epochs, eta_min=args.cosine_min_lr)
         delattr(args, 'reduce_patience')
         delattr(args, 'reduce_factor')
     else:
         scheduler = None
+        delattr(args,'cosine_T_max')
+        delattr(args,'cosine_min_lr')
+        delattr(args, 'reduce_patience')
+        delattr(args, 'reduce_factor')
+
     
     
     """------------------------------------- 损失函数 --------------------------------------------"""
@@ -242,10 +254,10 @@ if __name__ == "__main__":
     
     parser.add_argument("--model", type=str, default="UNet3D", help="models: ['UNet3D', 'UNet_3d_22M_32', 'UNet_3d_22M_64', 'UNet_3d_48M', 'UNet_3d_90M', 'UNet3d_bn_256', 'UNet3d_bn_512', 'UNet_3d_ln', 'UNet_3d_ln2']")
     parser.add_argument("--total_parms", type=int, default=None, required=False, help="total parameters")
-    parser.add_argument("--epochs", type=int, default=60, help="num_epochs")
+    parser.add_argument("--epochs", type=int, default=100, help="num_epochs")
     parser.add_argument("--nw", type=int, default=8, help="num_workers")
-    parser.add_argument("--bs", type=int, default=2, help="batch_size")
-    parser.add_argument("--early_stop_patience", type=int, default=20, help="early stop patience")
+    parser.add_argument("--bs", type=int, default=4, help="batch_size")
+    parser.add_argument("--early_stop_patience", type=int, default=50, help="early stop patience")
     
     parser.add_argument("--input_channels", type=int, default=4, help="input channels")
     parser.add_argument("--output_channels", type=int, default=4, help="output channels")
@@ -253,22 +265,22 @@ if __name__ == "__main__":
     parser.add_argument("--valCropSize", type=lambda x: tuple(map(int, x.split(','))), default=(128, 128, 128), help="crop size")
     
     parser.add_argument("--loss", type=str, default="DiceLoss", help="loss function: ['DiceLoss', 'CELoss', 'FocalLoss']")
-    parser.add_argument("--loss_type", type=str, default="classes_custom", help="loss type to grad")
+    parser.add_argument("--loss_type", type=str, default="mean", help="loss type to grad")
     parser.add_argument("--save_max", type=int, default=5, help="ckpt max save number")
 
     parser.add_argument("--optimizer", type=str, default="AdamW", help="optimizers: ['AdamW', 'SGD', 'RMSprop']")
-    parser.add_argument("--lr", type=float, default=0.001, help="learning rate")
-    parser.add_argument("--wd", type=float, default=1e-4, help="weight decay")
+    parser.add_argument("--lr", type=float, default=3e-4, help="learning rate")
+    parser.add_argument("--wd", type=float, default=1e-5, help="weight decay")
 
-    parser.add_argument("--scheduler", type=str, default="CosineAnnealingLR", help="schedulers:['ReduceLROnPlateau', 'CosineAnnealingLR']")
-    parser.add_argument("--cosine_min_lr", type=float, default=1e-4, help="CosineAnnealingLR min lr")
+    parser.add_argument("--scheduler", type=str, default='CosineAnnealingLR', help="schedulers:['ReduceLROnPlateau', 'CosineAnnealingLR']")
+    parser.add_argument("--cosine_min_lr", type=float, default=1e-8, help="CosineAnnealingLR min lr")
     parser.add_argument("--cosine_T_max", type=int, default=100, help="CosineAnnealingLR T max")
     # parser.add_argument("--cosine_last_epoch", type=int, default=30, help="CosineAnnealingLR last epoch")
 
     parser.add_argument("--reduce_patience", type=int, default=3, help="ReduceLROnPlateau scheduler patience")
     parser.add_argument("--reduce_factor", type=float, default=0.9, help="ReduceLROnPlateau scheduler factor")
     
-    parser.add_argument("--data_scale", type=str, default="debug", help="loading data scale")
+    parser.add_argument("--data_scale", type=str, default="full", help="loading data scale")
     parser.add_argument("--trainSet_len", type=int, default=100, help="train length")
     parser.add_argument("--valSet_len", type=int, default=12, help="val length")
     parser.add_argument("--interval", type=int, default=1, help="checkpoint interval")
