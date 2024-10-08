@@ -60,6 +60,8 @@ class CLR_Block_Dilation(CBR_Block_Dilation):
         # 参数
         self.conv[2] = nn.LayerNorm([out_channels, *ln_spatial_shape])
 
+
+
 class Up_Block(nn.Module):
     def __init__(self, in_channels:int, out_channels:int, kernel_size, stride, padding):
         super(Up_Block, self).__init__()
