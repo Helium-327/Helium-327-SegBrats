@@ -16,7 +16,6 @@ import os
 import numpy as np
 from torch.nn import functional as F
 from tabulate import tabulate
-from nets.unet3d.unet3d import *
 from nets.model_weights_init import *
 from readDatasets.BraTS import BraTS21_3d
 
