@@ -52,7 +52,7 @@ class DiceLoss:
         loss = tensor_one - dice.mean()  # 必须是tensor(1)
 
         mean_loss = (area_et_loss + area_tc_loss + area_wt_loss) / 3
-        return loss, area_et_loss, area_tc_loss, area_wt_loss
+        return mean_loss, area_et_loss, area_tc_loss, area_wt_loss
 
     def get_every_subAreas_loss(self, y_pred, y_mask):
         loss_dict = {}
@@ -72,6 +72,60 @@ class DiceLoss:
 
         return area_et_loss, area_tc_loss, area_wt_loss
 
+class GMDiceLoss:
+    def __init__(self, loss_type='subarea_custom', smooth=1e-5, w1=0.2, w2=0.2, w3=0.4):
+        """
+        初始化函数:
+        :param smooth: 平滑因子
+        :param w1: ET权重
+        :param w2: TC权重
+        :param w3: WT权重
+        """
+        self.smooth = smooth
+        self.loss_type = loss_type
+        self.sub_areas = ['ET', 'TC', 'WT']
+        self.labels = {
+            'BG': 0, 
+            'NCR' : 1,
+            'ED': 2,
+            'ET':3
+        }
+        self.num_classes = len(self.labels)
+
+    def __call__(self, y_pred, y_mask):
+        """
+        DiceLoss
+        :param y_pred: 预测值 [batch, 4, D, W, H]
+        :param y_mask: 真实值 [batch, D, W, H]
+        """
+        tensor_one = torch.tensor(1)
+        y_mask = F.one_hot(y_mask, num_classes=self.num_classes).permute(0, 4, 1, 2, 3).float() # y_mask ==> [batch, 4, 144, 128, 128]
+        area_et_loss, area_tc_loss, area_wt_loss = self.get_every_subAreas_loss(y_pred, y_mask)
+
+        intersection = (y_pred * y_mask).sum(dim=(-3, -2, -1))
+        union = y_pred.sum(dim=(-3, -2, -1)) + y_mask.sum(dim=(-3, -2, -1))
+        dice = 2 * (intersection + self.smooth) / (union + self.smooth)
+        loss = tensor_one - dice.mean()  # 必须是tensor(1)
+        
+        return loss, area_et_loss, area_tc_loss, area_wt_loss
+
+    def get_every_subAreas_loss(self, y_pred, y_mask):
+        loss_dict = {}
+        pred_list, mask_list = splitSubAreas(y_pred, y_mask)
+
+        # 计算子区域的diceloss
+        for sub_area, pred, mask in zip(self.sub_areas, pred_list, mask_list):
+            intersection = (pred * mask).sum(dim=(-3, -2, -1))
+            union = pred.sum(dim=(-3, -2, -1)) + mask.sum(dim=(-3, -2, -1))
+            dice_c = 2 * (intersection + self.smooth) / (union + self.smooth)
+            loss_dict[sub_area] = 1 - dice_c.mean()
+
+        # 计算batch平均损失
+        area_et_loss = loss_dict['ET']
+        area_tc_loss = loss_dict['TC']
+        area_wt_loss = loss_dict['WT']
+
+        return area_et_loss, area_tc_loss, area_wt_loss
 
 # Focal Loss
 class FocalLoss:
