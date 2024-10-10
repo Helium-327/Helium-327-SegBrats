@@ -103,31 +103,28 @@ def main(args):
     
     """------------------------------------- 划分数据集 --------------------------------------------"""
     if args.data_split:
-        dataSpliter =  dataSpliter(path_data, train_split=args.ts, val_split=args.vs, seed=RANDOM_SEED)
-        train_list, test_list, val_list = dataSpliter.data_split()
-        dataSpliter.save_as_csv(train_list, train_csv)
-        dataSpliter.save_as_csv(test_list, val_csv)
-        dataSpliter.save_as_csv(val_list, test_csv)
+        dataspliter =  dataSpliter(path_data, train_split=args.ts, val_split=args.vs, seed=RANDOM_SEED)
+        train_list, test_list, val_list = dataspliter.data_split()
+        dataspliter.save_as_csv(train_list, train_csv)
+        dataspliter.save_as_csv(test_list, val_csv)
+        dataspliter.save_as_csv(val_list, test_csv)
     else:
         delattr(args, 'ts')
         delattr(args, 'vs')
 
     """------------------------------------- 载入数据集 --------------------------------------------"""
     TransMethods_train = data_transform(transform=Compose([RandomCrop3D(size=args.trainCropSize),    # 随机裁剪
-                                                        # tioRandonCrop3d(size=CropSize),
                                                         tioRandomFlip3d(),                 # 随机翻转
+                                                        Normalize(mean=(0.114, 0.090, 0.170, 0.096), std=(0.199, 0.151, 0.282, 0.174)),   # 标准化
                                                         # tioRandomElasticDeformation3d(),
-                                                        tioRandomNoise3d(),
-                                                        tioRandomGamma3d(),    
                                                         # tioRandomAffine(),          # 随机旋转
-                                                        tioZNormalization(),               # 归一化
-                                                        # Normalize(mean=(0.114, 0.090, 0.170, 0.096), std=(0.199, 0.151, 0.282, 0.174)),   # 标准化
-                                      ]))
+                                                        # tioZNormalization(),               # 归一化
+                                      ])) #! 不加噪声 不加噪声 不加噪声
     
     TransMethods_val = data_transform(transform=Compose([RandomCrop3D(size=args.valCropSize),    # 随机裁剪
                                                          tioRandomFlip3d(),   
-                                                        #  Normalize(mean=(0.114, 0.090, 0.170, 0.096), std=(0.199, 0.151, 0.282, 0.174)),   # 标准化
-                                                         tioZNormalization(),               # 归一化
+                                                         Normalize(mean=(0.114, 0.090, 0.170, 0.096), std=(0.199, 0.151, 0.282, 0.174)),   # 标准化
+                                                        #  tioZNormalization(),               # 归一化
                                       ]))
     
     assert args.data_scale in ['debug', 'small', 'full'], "data_scale must be 'debug', 'small' or 'full'!"
@@ -196,7 +193,7 @@ def main(args):
         delattr(args,'cosine_T_max')
         delattr(args,'cosine_min_lr')
     elif args.scheduler == 'CosineAnnealingLR':
-        scheduler = CosineAnnealingLR(optimizer, T_max=args.epochs, eta_min=args.cosine_min_lr)
+        scheduler = CosineAnnealingLR(optimizer, T_max=args.cosine_T_max, eta_min=args.cosine_min_lr)
         delattr(args, 'reduce_patience')
         delattr(args, 'reduce_factor')
     else:
@@ -260,9 +257,9 @@ if __name__ == "__main__":
     
     parser.add_argument("--model", type=str, default="unet3d_bn", help="models: ['unet3d_bn', 'unet3d_ln', 'unet3d_dilation', 'unet3d_bn_5x5']")
     parser.add_argument("--total_parms", type=int, default=None, required=False, help="total parameters")
-    parser.add_argument("--epochs", type=int, default=300, help="num_epochs")
-    parser.add_argument("--nw", type=int, default=8, help="num_workers")
-    parser.add_argument("--bs", type=int, default=4, help="batch_size")
+    parser.add_argument("--epochs", type=int, default=200, help="num_epochs")
+    parser.add_argument("--nw", type=int, default=4, help="num_workers")
+    parser.add_argument("--bs", type=int, default=2, help="batch_size")
     parser.add_argument("--early_stop_patience", type=int, default=50, help="early stop patience")
     
     parser.add_argument("--input_channels", type=int, default=4, help="input channels")

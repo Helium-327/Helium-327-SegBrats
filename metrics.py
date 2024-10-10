@@ -19,8 +19,13 @@ from tabulate import tabulate
 from nets.model_weights_init import *
 from readDatasets.BraTS import BraTS21_3d
 
+'''
+ TODO:
+    - [ ] 需要做关于smooth的实验，验证smooth对于验证指标的影响    | DDL: 2024//
+'''
+
 class EvaluationMetrics:
-    def __init__(self, smooth=1e-6, num_classes=4):
+    def __init__(self, smooth=1e-5, num_classes=4):
         self.smooth = smooth
         self.num_classes = num_classes
         self.sub_areas = ['ET', 'TC', 'WT']
@@ -85,8 +90,8 @@ class EvaluationMetrics:
         for sub_area, sub_pred, sub_mask in zip(self.sub_areas, pred_list, mask_list):
             intersection = (sub_pred * sub_mask).sum(dim=(-3, -2, -1))
             union = sub_pred.sum(dim=(-3, -2, -1)) + sub_mask.sum(dim=(-3, -2, -1))
-            dice_coeff = 2*(intersection) / union
-            dice_coeffs[sub_area] = dice_coeff.mean()
+            dice_c = (2. * intersection + self.smooth) / (union + self.smooth)
+            dice_coeffs[sub_area] = dice_c.mean()
         
         # 提取特定类别的Dice系数
         et_dice = dice_coeffs['ET'].item()
@@ -116,7 +121,7 @@ class EvaluationMetrics:
         for sub_area, pred, mask in zip(self.sub_areas, pred_list, mask_list):
             intersection = (pred * mask).sum(dim=(-3, -2, -1))
             union = pred.sum(dim=(-3, -2, -1)) + mask.sum(dim=(-3, -2, -1)) - intersection
-            jaccard = intersection / union
+            jaccard = (intersection  + self.smooth)/ (union + self.smooth)
             jaccard_coeffs[sub_area] = jaccard.mean()
 
         # 提取特定类别的Jaccard系数
@@ -254,11 +259,11 @@ class EvaluationMetrics:
         recall_list = self.recall(y_pred, y_mask)
         
         # f1_score on ET
-        f2_scores[self.sub_areas[0]] = 5 * (precision_list[1] * recall_list[1]) / (4*precision_list[1] + recall_list[1])
+        f2_scores[self.sub_areas[0]] = (5*precision_list[1] * recall_list[1]) / (4*precision_list[1] + recall_list[1])
         # f1_socre on TC
-        f2_scores[self.sub_areas[1]] = 5 * (precision_list[2] * recall_list[2]) / (4*precision_list[2] + recall_list[2])
+        f2_scores[self.sub_areas[1]] = (5*precision_list[2] * recall_list[2]) / (4*precision_list[2] + recall_list[2])
         # f1_score on WT
-        f2_scores[self.sub_areas[2]] = 5 * (precision_list[3] * recall_list[3]) / (4*precision_list[3] + recall_list[3])
+        f2_scores[self.sub_areas[2]] = (5*precision_list[3] * recall_list[3]) / (4*precision_list[3] + recall_list[3])
         
         et_f2 = f2_scores['ET']
         tc_f2 = f2_scores['TC']

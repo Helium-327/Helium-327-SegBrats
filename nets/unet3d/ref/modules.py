@@ -6,7 +6,7 @@
 *      DESCRIPTION: UNet3D的模块
 =================================================
 '''
-
+import torch
 import torch.nn as nn
 from torch.nn import functional as F
 from torchsummary import summary
@@ -36,7 +36,47 @@ class CBR_Block_Dilation(CBR_Block_3x3):
         # 参数
         self.conv[0] = nn.Conv3d(in_channels, out_channels, kernel_size=kernel_size, padding=padding, dilation=dilation, bias=True)
 
+class ResCBR_3x3(nn.Module):
+    def __init__(self, in_channels:int, out_channels:int):
+        super(ResCBR_3x3, self).__init__()
+        self.conv = nn.Sequential(
+            CBR_Block_3x3(in_channels, out_channels),
+            CBR_Block_3x3(out_channels, out_channels)
+        )
+        self.conv_1x1 = nn.Conv3d(in_channels, out_channels, kernel_size=1, padding=0, dilation=1, bias=True)
+    def forward(self, x):
+        out_forward = self.conv(x)
+        out_skip = self.conv_1x1(x)
+        out = out_forward + out_skip
+        return out
 
+class ResCBR_dilation(nn.Module):
+    def __init__(self, in_channels:int, out_channels:int, kernel_size:int, padding:int, dilation:int):
+        super(ResCBR_dilation, self).__init__()
+        # 参数
+        self.conv = nn.Sequential(
+                    CBR_Block_Dilation(in_channels, out_channels, kernel_size, padding, dilation),
+                    CBR_Block_Dilation(out_channels, out_channels, kernel_size, padding, dilation)
+                )
+
+        self.conv_1x1 = nn.Conv3d(in_channels, out_channels, kernel_size=1, padding=0, dilation=1, bias=True)
+
+    def forward(self, x):
+        out_forward = self.conv(x)
+        out_skip = self.conv_1x1(x)
+        out = out_forward + out_skip
+        return out
+        
+
+class CBR_Res_Block_5x5(ResCBR_3x3):
+    def __init__(self, in_channels:int, out_channels:int):
+        super(CBR_Res_Block_5x5, self).__init__(in_channels, out_channels)
+        # 参数
+    
+    def forward(self, x):
+        out = super(CBR_Res_Block_5x5, self).forward(x)
+        out += x
+        return out
 
 class CLR_Block_3x3(CBR_Block_3x3):
     def __init__(self, in_channels:int, out_channels:int, ln_spatial_shape:list=[]):
@@ -232,3 +272,13 @@ class UpSampling2times(nn.Module):
         if self.use_dropout:
             out = self.dropout(out)
         return out
+    
+
+if __name__ == "__main__":
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model = ResCBR_3x3(4, 32).to(device)
+
+    summary(model, (4, 128, 128, 128))
+    x = torch.rand((1, 4, 128, 128, 128)).to(device)
+    out = model(x)
+    print(out.shape)
