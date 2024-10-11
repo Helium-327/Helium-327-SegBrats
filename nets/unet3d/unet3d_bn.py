@@ -23,8 +23,7 @@ import torch.nn as nn
 from torch.nn import functional as F
 from nets.unet3d.ref.modules import Up_Block
 from nets.unet3d.ref.CBR_Blocks import *
-# from ref.CBR_Blocks import *
-# from ref.modules import Up_Block
+
 from torchsummary import summary
 
 
@@ -171,41 +170,41 @@ class UNet3D_ResBN(nn.Module):
 
         # 解码器
         self.decoder1 = nn.Sequential(
-            ResCBR_3x3(512, 256),
-            ResCBR_3x3(256, 256),
+            CBR_Block_3x3(512, 256),
+            CBR_Block_3x3(256, 256),
         )
         self.up1      = nn.Sequential(
             Up_Block(512, 512, 4, 2, 1),
-            ResCBR_3x3(512, 256),
+            CBR_Block_3x3(512, 256),
         )
 
 
         self.decoder2 = nn.Sequential(
-            ResCBR_3x3(256, 128),
-            ResCBR_3x3(128, 128),
+            CBR_Block_3x3(256, 128),
+            CBR_Block_3x3(128, 128),
         )
         self.up2      = nn.Sequential(
             Up_Block(256, 256, 4, 2, 1),
-            ResCBR_3x3(256, 128),
+            CBR_Block_3x3(256, 128),
         )
 
 
         self.decoder3 = nn.Sequential(
-            ResCBR_3x3(128, 64),
-            ResCBR_3x3(64, 64),
+            CBR_Block_3x3(128, 64),
+            CBR_Block_3x3(64, 64),
         )
         self.up3      = nn.Sequential(
             Up_Block(128, 64, 4, 2, 1),
-            ResCBR_3x3(64, 64),
+            CBR_Block_3x3(64, 64),
         )
 
         self.decoder4 = nn.Sequential(
-            ResCBR_3x3(64, 32),
-            ResCBR_3x3(32, 32),
+            CBR_Block_3x3(64, 32),
+            CBR_Block_3x3(32, 32),
         )
         self.up4      = nn.Sequential(
             Up_Block(64, 32, 4, 2, 1),
-            ResCBR_3x3(32, 32),
+            CBR_Block_3x3(32, 32),
         )
 
         # 输出层
@@ -238,7 +237,8 @@ class UNet3D_ResBN(nn.Module):
     
 if __name__ == "__main__":
 
-
+    from ref.CBR_Blocks import *
+    from ref.modules import Up_Block
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = UNet3D_ResBN(in_channels=4, out_channels=4, use_dropout=False)
     print(model)

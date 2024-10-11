@@ -267,12 +267,12 @@ if __name__ == "__main__":
     parser.add_argument("--results_root", type=str, default="./results", help="result path")
     parser.add_argument("--resume", type=str, default=None, help="resume training from checkpoint")
     
-    parser.add_argument("--model", type=str, default="unet3d_bn", help="models: ['unet3d_bn', 'unet3d_ln', 'unet3d_dilation', 'unet3d_bn_5x5']")
+    parser.add_argument("--model", type=str, default="unet3d_bn_res", help="models: ['unet3d_bn', 'unet3d_ln', 'unet3d_dilation', 'unet3d_bn_5x5']")
     parser.add_argument("--total_parms", type=int, default=None, required=False, help="total parameters")
     parser.add_argument("--epochs", type=int, default=200, help="num_epochs")
     parser.add_argument("--nw", type=int, default=4, help="num_workers")
     parser.add_argument("--bs", type=int, default=2, help="batch_size")
-    parser.add_argument("--early_stop_patience", type=int, default=50, help="early stop patience")
+    parser.add_argument("--early_stop_patience", type=int, default=30, help="early stop patience")
     
     parser.add_argument("--input_channels", type=int, default=4, help="input channels")
     parser.add_argument("--output_channels", type=int, default=4, help="output channels")
@@ -287,15 +287,15 @@ if __name__ == "__main__":
     parser.add_argument("--lr", type=float, default=3e-4, help="learning rate")
     parser.add_argument("--wd", type=float, default=1e-5, help="weight decay")
 
-    parser.add_argument("--scheduler", type=str, default='CosineAnnealingLR', help="schedulers:['ReduceLROnPlateau', 'CosineAnnealingLR']")
-    parser.add_argument("--cosine_min_lr", type=float, default=1e-8, help="CosineAnnealingLR min lr")
+    parser.add_argument("--scheduler", type=str, default='CosineAnnealingLR',    help="schedulers:['ReduceLROnPlateau', 'CosineAnnealingLR']")
+    parser.add_argument("--cosine_min_lr", type=float, default=1e-6, help="CosineAnnealingLR min lr")
     parser.add_argument("--cosine_T_max", type=int, default=300, help="CosineAnnealingLR T max")
     # parser.add_argument("--cosine_last_epoch", type=int, default=30, help="CosineAnnealingLR last epoch")
 
     parser.add_argument("--reduce_patience", type=int, default=3, help="ReduceLROnPlateau scheduler patience")
     parser.add_argument("--reduce_factor", type=float, default=0.9, help="ReduceLROnPlateau scheduler factor")
     
-    parser.add_argument("--data_scale", type=str, default="full", help="loading data scale")
+    parser.add_argument("--data_scale", type=str, default="debug", help="loading data scale")
     parser.add_argument("--trainSet_len", type=int, default=100, help="train length")
     parser.add_argument("--valSet_len", type=int, default=12, help="val length")
     parser.add_argument("--interval", type=int, default=1, help="checkpoint interval")

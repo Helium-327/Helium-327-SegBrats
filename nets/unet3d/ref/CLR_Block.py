@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 from torchsummary import summary
-from CBR_Blocks import *
+from nets.unet3d.ref.CBR_Blocks import *
 
 
 class CLR_Block_3x3(CBR_Block_3x3):
