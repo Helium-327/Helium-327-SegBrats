@@ -9,7 +9,12 @@ Author:             @ Mr_Robot
 Current State:      整个流程构建完成,测试完成
 Notice:             计算Dice系数时，先计算子区大小，再计算Dice系数
 '''
-#! ⚠️ 注意：计算Dice系数时，先计算子区大小，再计算Dice系数, 医学图像只关注异常区域的分割指标
+#! ⚠️ 注意：1. 计算Dice系数时，先计算子区大小，再计算Dice系数, 医学图像只关注异常区域的分割指标(其实不一定)
+#! 计算验证指标dice时，使用smooth会对结果有一定的影响，实验证明，分子分母同时增加smooth会比不加，指标要好的多。
+'''
+ TODO:
+    - [ ] 需要做关于smooth的实验，验证smooth对于验证指标的影响    | DDL: 2024//
+'''
 
 import torch
 import os
@@ -19,10 +24,6 @@ from tabulate import tabulate
 from nets.model_weights_init import *
 from readDatasets.BraTS import BraTS21_3d
 
-'''
- TODO:
-    - [ ] 需要做关于smooth的实验，验证smooth对于验证指标的影响    | DDL: 2024//
-'''
 
 class EvaluationMetrics:
     def __init__(self, smooth=1e-5, num_classes=4):

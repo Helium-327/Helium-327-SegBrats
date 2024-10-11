@@ -9,10 +9,10 @@ from torch.optim import Adam, SGD, RMSprop, AdamW
 from torch.optim.lr_scheduler import ReduceLROnPlateau, CosineAnnealingLR
 from torch.amp import GradScaler
 
-from nets.unet3d.unet3d_bn import UNet3D_BN
+from nets.unet3d.unet3d_bn import UNet3D_BN, UNet3D_ResBN
 from nets.unet3d.unet3d_ln import UNet3D_LN
 from nets.unet3d.unet3d_5x5 import UNet3D_BN_5x5
-# from nets.unet3d.uent3d_dilation import UNet3D_dilation
+from nets.unet3d.uent3d_dilation import UNet3D_dilation, UNet3D_ResDilation
 from nets.model_weights_init import init_weights_light
 from loss_function import DiceLoss, CELoss, FocalLoss
 from utils.get_commits import *
@@ -31,6 +31,14 @@ DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 RANDOM_SEED = 42
 scaler = GradScaler() # 混合精度训练
 MetricsGo = EvaluationMetrics() # 实例化评估指标类
+
+'''
+ TODO:
+    - [ ] 使用unet3d_dilation, 查看效果    | DDL: 2024//
+    - [ ] 使用unet3d_bn_5x5, 查看效果    | DDL: 2024//
+    - [ ] 使用unet3d_bn_res / dilation查看效果    | DDL: 2024//
+    - [ ] 添加注意力机制， SE、CBAM等
+'''
 
 def main(args):
     start_epoch = 0
@@ -64,12 +72,16 @@ def main(args):
 
     if args.model == 'unet3d_bn':
         model = UNet3D_BN(4, 4)
+    elif args.model == 'unet3d_bn_res':
+        model = UNet3D_ResBN(4, 4)
     elif args.model == 'unet3d_ln':
         model = UNet3D_LN(4, 4)
     elif args.model == 'unet3d_bn_5x5':
         model = UNet3D_BN_5x5(4, 4)
-    # elif args.model == 'unet3d_dilation':
-    #     model = UNet3D_dilation(4, 4)
+    elif args.model == 'unet3d_dilation':
+        model = UNet3D_dilation(4, 4)
+    elif args.model == 'unet3d_dilation_res':
+        model = UNet3D_ResDilation(4, 4)
     else:
         raise ValueError(f"Invalid model name: {args.model}")
     

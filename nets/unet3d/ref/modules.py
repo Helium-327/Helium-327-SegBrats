@@ -68,16 +68,6 @@ class ResCBR_dilation(nn.Module):
         return out
         
 
-class CBR_Res_Block_5x5(ResCBR_3x3):
-    def __init__(self, in_channels:int, out_channels:int):
-        super(CBR_Res_Block_5x5, self).__init__(in_channels, out_channels)
-        # 参数
-    
-    def forward(self, x):
-        out = super(CBR_Res_Block_5x5, self).forward(x)
-        out += x
-        return out
-
 class CLR_Block_3x3(CBR_Block_3x3):
     def __init__(self, in_channels:int, out_channels:int, ln_spatial_shape:list=[]):
         super(CLR_Block_3x3, self).__init__(in_channels, out_channels)

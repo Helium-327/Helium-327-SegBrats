@@ -45,7 +45,7 @@ class ResCBR_3x3(nn.Module):
             CBR_Block_3x3(in_channels, out_channels),
             CBR_Block_3x3(out_channels, out_channels)
         )
-        self.conv[2].remove(3)
+        del self.conv[1].conv[2]
         self.conv_1x1 = nn.Conv3d(in_channels, out_channels, kernel_size=1, padding=0, dilation=1, bias=True)
     
     def forward(self, x):
@@ -62,7 +62,7 @@ class ResCBR_dilation(nn.Module):
                     CBR_Block_Dilation(in_channels, out_channels, kernel_size, padding, dilation),
                     CBR_Block_Dilation(out_channels, out_channels, kernel_size, padding, dilation)
                 )
-        self.conv[2].remove(3)
+        del self.conv[1][2]
         self.conv_1x1 = nn.Conv3d(in_channels, out_channels, kernel_size=1, padding=0, dilation=1, bias=True)
 
     def forward(self, x):

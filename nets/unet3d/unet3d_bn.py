@@ -21,8 +21,10 @@ Estimated Total Size (MB): 16836.75
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
-from nets.unet3d.ref.modules import *
-# from ref.modules import *
+from nets.unet3d.ref.modules import Up_Block
+from nets.unet3d.ref.CBR_Blocks import *
+# from ref.CBR_Blocks import *
+# from ref.modules import Up_Block
 from torchsummary import summary
 
 
@@ -126,6 +128,19 @@ class UNet3D_BN(nn.Module):
         return out
     
 class UNet3D_ResBN(nn.Module):
+    """
+    参数
+    ================================================================
+    Total params: 74,256,964
+    Trainable params: 74,256,964
+    Non-trainable params: 0
+    ----------------------------------------------------------------
+    Input size (MB): 32.00
+    Forward/backward pass size (MB): 33644.00
+    Params size (MB): 283.27
+    Estimated Total Size (MB): 33959.27
+    ----------------------------------------------------------------
+    """
     def __init__(self, in_channels:int, out_channels:int, dropout_rate:float=0, use_bn:bool=True, use_ln:bool=False, use_dropout:bool=False, ln_spatial_shape:list=[]):
         super(UNet3D_ResBN, self).__init__()
         self.dropout_rate = dropout_rate
@@ -225,7 +240,7 @@ if __name__ == "__main__":
 
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = UNet3D_BN(in_channels=4, out_channels=4, use_dropout=False)
+    model = UNet3D_ResBN(in_channels=4, out_channels=4, use_dropout=False)
     print(model)
     input_tensor = torch.randn([1, 4, 128, 128, 128]).float()
 

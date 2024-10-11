@@ -16,7 +16,7 @@ from torch.nn import CrossEntropyLoss
 from torch.nn import functional as F
 import torch
 
-# class DiceLoss:
+# class GMDiceLoss:
 #     def __init__(self, smooth=1e-5):
 #         """
 #         初始化函数:

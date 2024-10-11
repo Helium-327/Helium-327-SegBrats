@@ -4,23 +4,23 @@
 *      CREATE ON: 2024/10/08 19:07:22
 *      AUTHOR: @Junyin Xiong
 *      DESCRIPTION: 使用 dilation 为 2 的 膨胀卷积， 等效于 5x5的卷积
+    #! 虽然能够减少参数，但是显存占用太多，需要谨慎使用
+    #! 原因： 这种扩大感受野的方式使得网络能够在不增加参数的情况下处理更多的信息，但同时也可能导致需要存储更多的激活值（feature maps），从而增加显存占用
 =================================================
-参数：
-
-
 '''
 
 
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
-# from nets.unet3d.ref.modules import *
-from ref.modules import *
+from nets.unet3d.ref.modules import Up_Block
+from nets.unet3d.ref.CBR_Blocks import *
+# from ref.modules import *
 
 
 class UNet3D_dilation(nn.Module):
     """
-    膨胀卷积
+    膨胀卷积 
     ================================================================
     Total params: 36,395,044
     Trainable params: 36,395,044
