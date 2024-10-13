@@ -12,6 +12,7 @@ brats21/
 runs/
 results/
 checkpoints/
+outputs/
 nets/exp*
 
 .aider*
