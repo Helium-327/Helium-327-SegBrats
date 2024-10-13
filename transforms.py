@@ -121,9 +121,9 @@ class RandomCrop3D(object):
         
     def __call__(self, vimage, vmask):
         img = np.array(vmask)
-        x_start = np.random.randint(0, img.shape[-3] - self.size[0])
-        y_start = np.random.randint(0, img.shape[-2] - self.size[1])
-        z_start = np.random.randint(0, img.shape[-1] - self.size[2])
+        x_start = np.random.randint(0, img.shape[-3] - self.size[0]) if img.shape[-3] > self.size[0] else 0
+        y_start = np.random.randint(0, img.shape[-2] - self.size[1]) if img.shape[-2] > self.size[1] else 0
+        z_start = np.random.randint(0, img.shape[-1] - self.size[2]) if img.shape[-1] > self.size[2] else 0
         
         vimage = vimage[:,x_start: x_start + self.size[0], y_start: y_start + self.size[1], z_start: z_start + self.size[2]]
         vmask = vmask[x_start: x_start + self.size[0], y_start: y_start + self.size[1], z_start: z_start + self.size[2]]
