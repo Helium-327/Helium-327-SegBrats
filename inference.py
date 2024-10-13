@@ -9,6 +9,7 @@ Current State:     #TODO:
 '''
 import os
 import torch
+import argparse
 import numpy as np
 from tqdm import tqdm
 import nibabel as nib
@@ -20,7 +21,6 @@ from torch.optim import RMSprop, AdamW
 from torch.amp import GradScaler, autocast
 from torch.utils.data import DataLoader
 
-from nets.unet3ds import UNet3d_bn_512
 from readDatasets.BraTS import BraTS21_3d
 from transforms import data_transform, Compose, RandomCrop3D, Normalize, tioRandomFlip3d
 # from loss_function import DiceLoss, CELoss
@@ -31,7 +31,11 @@ from utils.ckpt_save_load import load_checkpoint
 # from utils.splitDataList import DataSpliter
 from utils.get_commits import *
 
-def inference(test_loader, model, Metricer, output_path, device, affine, window_size=(128, 128, 128), stride_size=(13, 32, 32)):
+from nets.unet3d.unet3d_bn import UNet3D_BN, UNet3D_ResBN
+
+from utils.plot_tools.plot_results import NiiViewer
+
+def inference(test_loader, model, Metricer, output_path, device, affine, window_size=(128, 128, 128), stride_size=(13, 28, 28), save_flag=False):
     """
     验证过程：
         1. 使用滑窗预测算法对测试集数据进行推理预测
@@ -50,51 +54,21 @@ def inference(test_loader, model, Metricer, output_path, device, affine, window_
     """
     Metrics_list = np.zeros((7, 4))
     
-    for i, data in enumerate(test_loader):
+    for i, data in enumerate(tqdm(test_loader)):
         vimage, vmask = data[0], data[1]
         # print(vmask.shape, vmask.shape)
         predvimage = slide_window_pred(model, vimage, device, window_size=window_size, stride_size=stride_size)
-        print(predvimage.shape)
-
-        # 降维，选出概率最大的类索引值
-        test_output_argmax = torch.argmax(predvimage, dim=1).to(dtype=torch.int64) 
+        # print(predvimage.shape)
 
         # # 获取one-hot编码,并转置为(batch, C, D, H, W)
         # test_output = F.one_hot(test_output_argmax, num_classes=4).permute(0, 4, 1, 2, 3).float() # one-hot
         # test_mask = F.one_hot(vmask, num_classes=4).permute(0, 4, 1, 2, 3).float() # ont-hot
 
-        num = 0
-
-        # 获取测试集的输入图像和预测输出的图像数据
-        save_input_t1 = vimage[num, 0, ...].permute(2, 1, 0).cpu().detach().numpy().astype(np.float32)
-        save_input_t1ce = vimage[num, 1, ...].permute(2, 1, 0).cpu().detach().numpy().astype(np.float32)
-        save_input_t2 = vimage[num, 2, ...].permute(2, 1, 0).cpu().detach().numpy().astype(np.float32)
-        save_input_flair = vimage[num, 3, ...].permute(2, 1, 0).cpu().detach().numpy().astype(np.float32)
-        save_input_mask = vmask[num, ...].permute(2, 1, 0).cpu().detach().numpy().astype(np.int16)
-        save_pred = test_output_argmax[num,...].permute(2, 1, 0).cpu().detach().numpy().astype(np.int16)
-
-
-        # 将数据转成nib的对象
-        nii_input_t1 = nib.nifti1.Nifti1Image(save_input_t1, affine=affine)
-        nii_input_t1ce = nib.nifti1.Nifti1Image(save_input_t1ce, affine=affine)
-        nii_input_t2 = nib.nifti1.Nifti1Image(save_input_t2, affine=affine)
-        nii_input_flair = nib.nifti1.Nifti1Image(save_input_flair, affine=affine)
-        nii_input_mask = nib.nifti1.Nifti1Image(save_input_mask, affine=affine)
-        nii_pred = nib.nifti1.Nifti1Image(save_pred, affine=affine)
-
-        # 保存nii文件
-        nib.save(nii_input_t1, os.path.join(output_path, f'P{i}_test_input_t1.nii.gz'))
-        nib.save(nii_input_t1ce, os.path.join(output_path, f'P{i}_test_input_t1ce.nii.gz'))
-        nib.save(nii_input_t2, os.path.join(output_path, f'P{i}_test_input_t2.nii.gz'))
-        nib.save(nii_input_flair, os.path.join(output_path, f'P{i}_test_input_flair.nii.gz'))
-        nib.save(nii_input_mask, os.path.join(output_path, f'P{i}_test_input_mask.nii.gz'))
-        nib.save(nii_pred, os.path.join(output_path, f'P{i}_test_pred.nii.gz'))
-
-        print(f"P{i} pred save successfully! path on {output_path}")
-
+        # 保存预测结果nii文件
+        if save_flag:
+            save_nii(predvimage, vimage, vmask, output_path, affine, i)
 
         # 评估指标
-        
         metrics = Metricer.update(predvimage, vmask)
         Metrics_list += metrics
 
@@ -148,54 +122,125 @@ def slide_window_pred(model, test_data, device, window_size, stride_size):
 
     return pred_mask
 
-if __name__ == '__main__':
+def save_nii(predvimage, vimage, vmask, output_path, affine, i):
+
+    # 降维，选出概率最大的类索引值
+    test_output_argmax = torch.argmax(predvimage, dim=1).to(dtype=torch.int64) 
+    num = 0
+    # 获取测试集的输入图像和预测输出的图像数据
+    save_input_t1 = vimage[num, 0, ...].permute(1, 2, 0).cpu().detach().numpy().astype(np.float32)
+    save_input_t1ce = vimage[num, 1, ...].permute(1, 2, 0).cpu().detach().numpy().astype(np.float32)
+    save_input_t2 = vimage[num, 2, ...].permute(1, 2, 0).cpu().detach().numpy().astype(np.float32)
+    save_input_flair = vimage[num, 3, ...].permute(1, 2, 0).cpu().detach().numpy().astype(np.float32)
+    save_input_mask = vmask[num, ...].permute(1, 2, 0).cpu().detach().numpy().astype(np.int8)
+    save_pred = test_output_argmax[num, ...].permute(1, 2, 0).cpu().detach().numpy().astype(np.int8)
+
+    # 将数据转成nib的对象
+    nii_input_t1 = nib.nifti1.Nifti1Image(save_input_t1, affine=affine)
+    nii_input_t1ce = nib.nifti1.Nifti1Image(save_input_t1ce, affine=affine)
+    nii_input_t2 = nib.nifti1.Nifti1Image(save_input_t2, affine=affine)
+    nii_input_flair = nib.nifti1.Nifti1Image(save_input_flair, affine=affine)
+    nii_input_mask = nib.nifti1.Nifti1Image(save_input_mask, affine=affine)
+    nii_pred = nib.nifti1.Nifti1Image(save_pred, affine=affine)
+
+    output_path = os.path.join(output_path, f"P{i}")
+    os.makedirs(output_path, exist_ok=True)
+
+    # 保存nii文件
+    nib.save(nii_input_t1, os.path.join(output_path, f'P{i}_test_input_t1.nii.gz'))
+    nib.save(nii_input_t1ce, os.path.join(output_path, f'P{i}_test_input_t1ce.nii.gz'))
+    nib.save(nii_input_t2, os.path.join(output_path, f'P{i}_test_input_t2.nii.gz'))
+    nib.save(nii_input_flair, os.path.join(output_path, f'P{i}_test_input_flair.nii.gz'))
+    nib.save(nii_input_mask, os.path.join(output_path, f'P{i}_test_input_mask.nii.gz'))
+    nib.save(nii_pred, os.path.join(output_path, f'P{i}_test_pred.nii.gz'))
+
+    print(f"P{i} pred save successfully! path on {output_path}")
+
+def main(args):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    
-    test_csv = "/mnt/d/AI_Research/WS-HUB/WS-BraTS/BraTS_segmentation/brats21_local/test.csv"
-    ckpt_path = r"./results/2024-09-22/21-48-32/checkpoints/UNet3d_bn_512_braTS21_2024-09-22 21-48-29/best@epoch58_diceloss0.3599_dice0.7308_22.pth"
-    results_path =  os.path.join(*ckpt_path.split("/")[:4])
-    outputs_path = os.path.join(results_path, "inference_results")
-    os.makedirs(outputs_path, exist_ok=True)
+    test_csv = args.test_csv
+    # 初始化模型
+    if args.model == "unet3d_bn":
+        model = UNet3D_BN(4, 4)
+    elif args.model == "unet3d_bn_res":
+        model = UNet3D_ResBN(4, 4)
+    else:
+        raise ValueError("model must be unet3d_bn or unet3d_bn_res")
 
-
-    affine = np.array([[ -1.,  -0.,  -0.,   0.],
-                    [ -0.,  -1.,  -0., 239.],
-                    [  0.,   0.,   1.,   0.],
-                    [  0.,   0.,   0.,   1.]])
-    
-    model = UNet3d_bn_512(4, 4)
-    model.to(device)
-    
+    optimizer = AdamW(model.parameters(), lr=0.001, betas=(0.9, 0.99), weight_decay=1e-5)
+    scaler = GradScaler()
     Metricer = EvaluationMetrics()
-    # loss_function = LossFunctions()
 
-    TransMethods_test   = data_transform(transform=Compose([RandomCrop3D(size=(154, 224, 224)),    # 随机裁剪
+    # 加载模型权重
+    model, optimizer, scaler, start_epoch, best_val_loss = load_checkpoint(model, optimizer, scaler, args.ckpt_path)
+    model.to(device)
+
+
+    # 初始化数据集
+    TransMethods_test   = data_transform(transform=Compose([RandomCrop3D(size=(154, 240, 240)),    # 随机裁剪
                                                         # tioRandonCrop3d(size=CropSize),
+                                                        #  tioRandomFlip3d(),   
                                                          Normalize(mean=(0.114, 0.090, 0.170, 0.096), std=(0.199, 0.151, 0.282, 0.174)),   # 标准化
-                                                         tioRandomFlip3d(),   
-                                                        # tioRandomAffine(),          # 随机旋转
-                                                        
-                                                        # tioRandomElasticDeformation3d(),
-                                                        # tioZNormalization(),               # 归一化
-                                                        # tioRandomNoise3d(),
-                                                        # tioRandomGamma3d()    
                                         ]))
 
-    test_dataset  = BraTS21_3d(test_csv, 
-                            transform=TransMethods_test, 
-                            local_train=True, 
-                            length=10)
+    # test_dataset  = BraTS21_3d(test_csv, 
+    #                         transform=TransMethods_test, 
+    #                         local_train=True, 
+    #                         length=10)
+    
+    if args.data_scale == "full":
+        test_dataset  = BraTS21_3d(test_csv, 
+                                transform=TransMethods_test)
+    elif args.data_scale == "small":
+        test_dataset  = BraTS21_3d(test_csv,
+                                transform=TransMethods_test,
+                                local_train=True,
+                                length=args.data_len)
+    else:
+        raise ValueError("data scale must be full or small")
+
 
     test_loader = DataLoader(dataset=test_dataset, 
                             batch_size=1, 
                             num_workers=4, 
                             shuffle=False)
-    
-
-    optimizer = AdamW(model.parameters(), lr=0.001, betas=(0.9, 0.99), weight_decay=1e-5)
-    scaler = GradScaler()
 
 
-    model, optimizer, scaler, start_epoch, best_val_loss = load_checkpoint(model, optimizer, scaler, ckpt_path)
-    # print(model)
-    inference(test_loader, model, Metricer, outputs_path, device, affine)
+    os.makedirs(args.outputs_root, exist_ok=True)
+
+    affine = np.array([[ -1.,  -0.,  -0.,   0.],
+                    [ -0.,  -1.,  -0., 239.],
+                    [  0.,   0.,   1.,   0.],
+                    [  0.,   0.,   0.,   1.]])
+    # affine = -np.eye(4) #! 调整图像的方向
+
+
+    dir_str = os.path.splitext(os.path.basename(args.ckpt_path))[0]
+    outputs_path = os.path.join(args.outputs_root, dir_str)
+
+    inference(test_loader, model, Metricer, outputs_path, device, affine, save_flag=args.save_flag)
+
+    # print("showing the results...")
+    # modals = ['t1', 't1ce', 't2', 'flair']
+    # for modal in modals:
+    #     viewer = NiiViewer(nii_dir=os.path.join(outputs_path, 'P0'), outputs_dir=outputs_path, modal=modal)
+        # viewer.show_one_slice(slice_n=100)
+        # viewer.show_color_map(slice_n=100)
+        # viewer.show_all_slices()
+        # viewer.show_montage()
+    print("😃😃well done")
+
+if __name__ == '__main__':
+
+    parser = argparse.ArgumentParser(description="inference args")
+    parser.add_argument("--model_name", type=str, default="unet3d_bn_res", help="model name")
+    parser.add_argument("--data_scale", type=str, default="full", help="loading data scale")
+    parser.add_argument("--data_len", type=int, default=10, help="train length")
+    parser.add_argument("--test_csv", type=str, default="./brats21_local/test.csv", help="test csv file path")
+    parser.add_argument("--ckpt_path", type=str, default="/root/workspace/Helium-327-SegBrats/results/2024-10-12/2024-10-12_20-27-38/checkpoints/UNet3D_BN_best_ckpt@epoch107_diceloss0.1372_dice0.8838_16.pth", help='inference model path')
+    parser.add_argument("--save_flag", type=bool, default=False, help="save flag")
+    parser.add_argument("--outputs_root", type=str, default='./outputs', help="output path")
+    parser.add_argument("--model", type=str, default="unet3d_bn", help="model name")
+    args = parser.parse_args()
+
+    main(args)

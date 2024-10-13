@@ -19,9 +19,9 @@ def load_checkpoint(model, optimizer, scaler, checkpoint_path):
     scaler.load_state_dict(checkpoint['scaler_state_dict'])
     start_epoch = checkpoint['epoch'] + 1
     best_val_loss = checkpoint['best_val_loss']
-    log_path = checkpoint['log_path']
+    # log_path = checkpoint['log_path']
     print(f"***Resuming training from epoch {start_epoch}...")
-    return model, optimizer, scaler, start_epoch, best_val_loss, log_path
+    return model, optimizer, scaler, start_epoch, best_val_loss
 
 def save_checkpoint(model, optimizer, scaler, epoch, best_val_loss, checkpoint_path):
     checkpoint = {
