@@ -63,5 +63,5 @@ def start_tensorboard(log_path, PORT=6006, HOST='0.0.0.0'):
             print(f"😃 TensorBoard 启动成功！\n请访问 localhost:{PORT} 查看TensorBoard面板。")
 
 if __name__ == "__main__":
-    log_path = '/root/workspace/Helium-327-SegBrats/results/2024-10-10/2024-10-10_14-14-57/tensorBoard'
+    log_path = '/root/data/workspace/Helium-327-SegBrats/results/2024-10-16/2024-10-16_17-04-08/tensorBoard'
     start_tensorboard(log_path, PORT=6006, HOST='0.0.0.0')

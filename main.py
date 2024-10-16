@@ -1,5 +1,6 @@
 import os
 import torch
+import torch.nn as nn
 import argparse
 from train import train
 from tabulate import tabulate
@@ -13,6 +14,7 @@ from nets.unet3d.unet3d_bn import UNet3D_BN, UNet3D_ResBN, UNet3D_BN_SE, UNet3D_
 from nets.unet3d.unet3d_ln import UNet3D_LN
 from nets.unet3d.unet3d_5x5 import UNet3D_BN_5x5
 from nets.unet3d.uent3d_dilation import UNet3D_dilation, UNet3D_ResDilation
+from nets.unet3d.pspnet import PSPNET
 from nets.model_weights_init import init_weights_light
 from loss_function import DiceLoss, CELoss, FocalLoss
 from utils.get_commits import *
@@ -89,6 +91,8 @@ def main(args):
         model = UNet3D_dilation(4, 4)
     elif args.model == 'unet3d_dilation_res':
         model = UNet3D_ResDilation(4, 4)
+    elif args.model == 'pspnet':
+        model = PSPNET(nn.Conv3d, nn.BatchNorm3d, nn.ReLU, 4, in_channel=4, mid_channels=128, out_channels=128, num_classes=4, img_size=128)
     else:
         raise ValueError(f"Invalid model name: {args.model}")
     
@@ -274,7 +278,7 @@ if __name__ == "__main__":
     parser.add_argument("--results_root", type=str, default="./results", help="result path")
     parser.add_argument("--resume", type=str, default=None, help="resume training from checkpoint")
     
-    parser.add_argument("--model", type=str, default="unet3d_bn_res", help="models: ['unet3d_bn', 'unet3d_ln', 'unet3d_dilation', 'unet3d_bn_5x5']")
+    parser.add_argument("--model", type=str, default="pspnet", help="models: ['unet3d_bn', 'unet3d_ln', 'unet3d_dilation', 'unet3d_bn_5x5']")
     parser.add_argument("--total_parms", type=int, default=None, required=False, help="total parameters")
     parser.add_argument("--epochs", type=int, default=200, help="num_epochs")
     parser.add_argument("--nw", type=int, default=4, help="num_workers")
