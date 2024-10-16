@@ -227,7 +227,7 @@ def main(args):
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description="inference args")
-    parser.add_argument("--model_name", type=str, default="unet3d_bn_res", help="model name")
+    # parser.add_argument("--model_name", type=str, default="unet3d_bn_res", help="model name")
     parser.add_argument("--data_scale", type=str, default="full", help="loading data scale")
     parser.add_argument("--data_len", type=int, default=10, help="train length")
     parser.add_argument("--test_csv", type=str, default="./brats21_local/test.csv", help="test csv file path")
