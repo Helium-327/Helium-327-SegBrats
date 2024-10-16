@@ -16,11 +16,18 @@ def custom_logger(content, file_pth, log_time=False):
     :param content: 日志内容
     :param file_pth: 日志文件路径
     '''
+
     now = get_current_date() + " " + get_current_time()
-    with open(file_pth, 'a') as f:
-        if log_time:
-            f.write(f"log Time: {now}\n")
-        f.write(content + '\n')
+    if not os.path.exists(file_pth):
+        with open(file_pth, 'a') as f:
+            if log_time:
+                f.write(f"log Time: {now}\n")
+            f.write(content + '\n')
+    else:
+        with open(file_pth, 'a') as f:
+            if log_time:
+                f.write(f"log Time: {now}\n")
+            f.write(content + '\n')
 
 # 获取当前日期
 def get_current_date():

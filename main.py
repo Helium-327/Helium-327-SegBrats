@@ -9,7 +9,7 @@ from torch.optim import Adam, SGD, RMSprop, AdamW
 from torch.optim.lr_scheduler import ReduceLROnPlateau, CosineAnnealingLR
 from torch.amp import GradScaler
 
-from nets.unet3d.unet3d_bn import UNet3D_BN, UNet3D_ResBN
+from nets.unet3d.unet3d_bn import UNet3D_BN, UNet3D_ResBN, UNet3D_BN_SE, UNet3D_ResBN_SE
 from nets.unet3d.unet3d_ln import UNet3D_LN
 from nets.unet3d.unet3d_5x5 import UNet3D_BN_5x5
 from nets.unet3d.uent3d_dilation import UNet3D_dilation, UNet3D_ResDilation
@@ -65,15 +65,22 @@ def main(args):
         os.makedirs(logs_dir, exist_ok=True)
 
     """------------------------------------- 记录当前实验内容 --------------------------------------------"""
-    exp_commit = input("请输入本次实验的更改内容: ")
+    if args.commit == None:
+        exp_commit = input("请输入本次实验的更改内容: ")
+    else:
+        exp_commit = args.commit
     write_commit_file(os.path.join(results_dir,'commits.md'), exp_commit)
 
     """------------------------------------- 模型实例化、初始化 --------------------------------------------"""
 
     if args.model == 'unet3d_bn':
         model = UNet3D_BN(4, 4)
+    elif args.model == 'unet3d_bn_se':
+        model = UNet3D_BN_SE(4, 4)
     elif args.model == 'unet3d_bn_res':
         model = UNet3D_ResBN(4, 4)
+    elif args.model == 'unet3d_bn_res_se':
+        model = UNet3D_ResBN_SE(4, 4)
     elif args.model == 'unet3d_ln':
         model = UNet3D_LN(4, 4)
     elif args.model == 'unet3d_bn_5x5':
@@ -284,7 +291,7 @@ if __name__ == "__main__":
     parser.add_argument("--save_max", type=int, default=5, help="ckpt max save number")
 
     parser.add_argument("--optimizer", type=str, default="AdamW", help="optimizers: ['AdamW', 'SGD', 'RMSprop']")
-    parser.add_argument("--lr", type=float, default=3e-4, help="learning rate")
+    parser.add_argument("--lr", type=float, default=5e-4, help="learning rate")
     parser.add_argument("--wd", type=float, default=1e-5, help="weight decay")
 
     parser.add_argument("--scheduler", type=str, default='CosineAnnealingLR',    help="schedulers:['ReduceLROnPlateau', 'CosineAnnealingLR']")
@@ -304,5 +311,7 @@ if __name__ == "__main__":
     parser.add_argument("--data_split", type=bool, default=False, help="data split True or False")
     parser.add_argument("--ts", type=float, default=0.8, help="train_split_rata")
     parser.add_argument("--vs", type=float, default=0.1, help="val_split_rate")
+    parser.add_argument("--commit", type=str, default=None, help="training commit")
+
     args = parser.parse_args()
     main(args=args)

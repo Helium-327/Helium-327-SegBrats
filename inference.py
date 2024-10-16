@@ -56,13 +56,7 @@ def inference(test_loader, model, Metricer, output_path, device, affine, window_
     
     for i, data in enumerate(tqdm(test_loader)):
         vimage, vmask = data[0], data[1]
-        # print(vmask.shape, vmask.shape)
         predvimage = slide_window_pred(model, vimage, device, window_size=window_size, stride_size=stride_size)
-        # print(predvimage.shape)
-
-        # # 获取one-hot编码,并转置为(batch, C, D, H, W)
-        # test_output = F.one_hot(test_output_argmax, num_classes=4).permute(0, 4, 1, 2, 3).float() # one-hot
-        # test_mask = F.one_hot(vmask, num_classes=4).permute(0, 4, 1, 2, 3).float() # ont-hot
 
         # 保存预测结果nii文件
         if save_flag:
