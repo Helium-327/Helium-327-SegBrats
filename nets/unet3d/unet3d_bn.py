@@ -21,10 +21,10 @@ Estimated Total Size (MB): 16836.75
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
-# from nets.unet3d.ref.modules import Up_Block
-# from nets.unet3d.ref.CBR_Blocks import *
+from nets.unet3d.ref.modules import Up_Block
+from nets.unet3d.attentions.SE import SE_Block
+from nets.unet3d.ref.CBR_Blocks import *
 
-# from nets.unet3d.attentions.SE import SE_Block
 from torchsummary import summary
 
 
