@@ -10,7 +10,7 @@
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
-from torchsummary import summary
+# from torchsummary import summary
 
 class CBR_Block_3x3(nn.Module):
     def __init__(self, in_channels:int, out_channels:int, kernel_size:int=3, padding:int=1, dilation:int=1, stride:int=1):

@@ -111,8 +111,6 @@ def val_one_epoch(model, Metric, val_loader, loss_function, epoch, device):
                 val_et_loss += et_loss.item() 
                 val_tc_loss += tc_loss.item()
                 val_wt_loss += wt_loss.item()
-                
-    Metrics_list /= len(val_loader)
     
         
     return val_running_loss, val_et_loss, val_tc_loss, val_wt_loss, Metrics_list

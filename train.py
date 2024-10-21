@@ -135,6 +135,7 @@ def train(model, Metrics, train_loader, val_loader, scaler, optimizer, scheduler
             mean_val_et_loss = val_et_loss / len(val_loader)
             mean_val_tc_loss = val_tc_loss / len(val_loader)
             mean_val_wt_loss = val_wt_loss / len(val_loader)
+            Metrics_list = Metrics_list / len(val_loader)
             
             # 记录验证结果
             val_scores = {}

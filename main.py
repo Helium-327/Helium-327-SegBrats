@@ -2,6 +2,7 @@ import os
 import torch
 import torch.nn as nn
 import argparse
+from nets.unet3d import unet3d_CBAM
 from train import train
 from tabulate import tabulate
 
@@ -14,6 +15,9 @@ from nets.unet3d.unet3d_bn import UNet3D_BN, UNet3D_ResBN, UNet3D_BN_SE, UNet3D_
 from nets.unet3d.unet3d_ln import UNet3D_LN
 from nets.unet3d.unet3d_5x5 import UNet3D_BN_5x5
 from nets.unet3d.uent3d_dilation import UNet3D_dilation, UNet3D_ResDilation
+from nets.unet3d.uent3d_ResSE import UNet3D_ResSE
+from nets.unet3d.unet3d_CBAM import unet3d_CBAM
+from nets.unet3d.unet3d import UNET3D
 from nets.unet3d.pspnet import PSPNET
 from nets.model_weights_init import init_weights_light
 from loss_function import DiceLoss, CELoss, FocalLoss
@@ -74,13 +78,18 @@ def main(args):
     write_commit_file(os.path.join(results_dir,'commits.md'), exp_commit)
 
     """------------------------------------- 模型实例化、初始化 --------------------------------------------"""
-
-    if args.model == 'unet3d_bn':
+    if args.model == 'unet3d':
+        model = UNET3D(4, 4, [64, 128, 256])
+    elif args.model == 'unet3d_bn':
         model = UNet3D_BN(4, 4)
     elif args.model == 'unet3d_bn_se':
         model = UNet3D_BN_SE(4, 4)
     elif args.model == 'unet3d_bn_res':
         model = UNet3D_ResBN(4, 4)
+    elif args.model == 'unet3d_resSE':
+        model = UNet3D_ResSE(4, 4)
+    elif args.model == 'unet3d_cbam':
+        model = unet3d_CBAM(4, 4)
     elif args.model == 'unet3d_bn_res_se':
         model = UNet3D_ResBN_SE(4, 4)
     elif args.model == 'unet3d_ln':
@@ -278,7 +287,7 @@ if __name__ == "__main__":
     parser.add_argument("--results_root", type=str, default="./results", help="result path")
     parser.add_argument("--resume", type=str, default=None, help="resume training from checkpoint")
     
-    parser.add_argument("--model", type=str, default="pspnet", help="models: ['unet3d_bn', 'unet3d_ln', 'unet3d_dilation', 'unet3d_bn_5x5']")
+    parser.add_argument("--model", type=str, default="unet3d_bn", help="models: ['unet3d_bn', 'unet3d_ln', 'unet3d_dilation', 'unet3d_bn_5x5']")
     parser.add_argument("--total_parms", type=int, default=None, required=False, help="total parameters")
     parser.add_argument("--epochs", type=int, default=200, help="num_epochs")
     parser.add_argument("--nw", type=int, default=4, help="num_workers")

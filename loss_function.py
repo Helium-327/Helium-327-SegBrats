@@ -110,6 +110,7 @@ class DiceLoss:
             intersection = (pred * mask).sum(dim=(-3, -2, -1))
             union = pred.sum(dim=(-3, -2, -1)) + mask.sum(dim=(-3, -2, -1))
             dice_c = (2. * intersection + self.smooth) / (union + self.smooth)
+            assert (dice_c > 0).all() and (dice_c < 1).any(), "DiceLoss Error: dice_c mast be between 0 and 1"
             loss_dict[sub_area] = 1. - dice_c.mean()
 
         # 计算batch平均损失
@@ -117,6 +118,7 @@ class DiceLoss:
         area_tc_loss = loss_dict['TC']
         area_wt_loss = loss_dict['WT']
 
+        assert not ((area_et_loss < 0).any() or (area_tc_loss < 0).any() or (area_wt_loss < 0).any()), f"DiceLoss Error: loss < 0, {area_et_loss}, {area_tc_loss}, {area_wt_loss}"
         return area_et_loss, area_tc_loss, area_wt_loss
 
 # Focal Loss

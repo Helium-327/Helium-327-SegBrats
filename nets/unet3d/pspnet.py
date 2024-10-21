@@ -38,26 +38,27 @@ class PSPNET(nn.Module):
 
         self.pool = nn.AdaptiveAvgPool3d
         self.up_sampling = nn.ConvTranspose3d
-        self.psp_layers = nn.Sequential(*self._make_pooling_layer())
+        self.pooling_layers = nn.Sequential(*self._make_pooling_layer())
         self.fe_layers = nn.Sequential(*self._make_Feature_Extraction_layers())
         self.up_layers = nn.Sequential(*self._make_up_layers())
         self.out_conv = nn.Conv3d(self.out_channel//(2**(depth-1)), num_classes, kernel_size=1)
         self.soft = nn.Softmax(dim=1)
+
     def _make_pooling_layer(self):
-        
+        """将输入的特征图池化成不同的尺寸"""
         pooling_layers = []
         for i in range(self.depth):
             if i == 0:
                 pooling_layers.append(
                     nn.Sequential(
-                            self.pool(self.img_size//(2*self.depth)),
+                            self.pool(self.img_size//(2**(i+1))),
                             self.op_conv(self.in_channel, self.mid_channel, kernel_size=1),
                             self.op_bn(self.mid_channel),
                             self.op_act()))
             else:
                 pooling_layers.append(
                     nn.Sequential(
-                            self.pool(self.img_size//(2*self.depth)),
+                            self.pool(self.img_size//(2**(i+1))),
                             self.op_conv(self.in_channel, self.mid_channel*(2**i), kernel_size=1),
                             self.op_bn(self.mid_channel*(2**i)),
                             self.op_act()))
@@ -111,10 +112,11 @@ class PSPNET(nn.Module):
         
     def forward(self, x):
         pooling_output = []
-        for m in self.psp_layers:
+        for m in self.pooling_layers:
             out = m(x)
             pooling_output.append(out)
         fe_output = []
+
         for i, m in enumerate(self.fe_layers):
             out = m(pooling_output[i])
             fe_output.append(out)
@@ -134,7 +136,7 @@ class PSPNET(nn.Module):
 if __name__ == '__main__':
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    net = PSPNET(nn.Conv3d, nn.BatchNorm3d, nn.ReLU, 4, in_channel=4, mid_channels=128, out_channels=128, num_classes=4, img_size=128).to(device)
+    net = PSPNET(nn.Conv3d, nn.BatchNorm3d, nn.ReLU, 4, in_channel=4, mid_channels=64, out_channels=128, num_classes=4, img_size=128).to(device)
     input = torch.randn(1, 4, 16, 16, 16).to(device)
 
     out = net(input)
@@ -150,4 +152,4 @@ if __name__ == '__main__':
 
     summary(net, (4, 128, 128, 128))
 
-                  
+                   

@@ -51,14 +51,16 @@ def init_weights_pro(model, init_type='normal', activation='relu', init_gain=0.0
 
 def init_weights_light(model,  init_gain=0.02):
     for m in model.modules():
-        if isinstance(m, nn.Conv3d):
-            nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
-        elif isinstance(m, nn.BatchNorm3d):
-            nn.init.constant_(m.weight, 1)
-            nn.init.constant_(m.bias, 0)
-        elif isinstance(m, nn.Linear):
-            nn.init.normal_(m.weight, 0, init_gain)
-            nn.init.constant_(m.bias, 0)
+        if isinstance(m, nn.Conv3d) or isinstance(m, nn.ConvTranspose3d):
+            m.weight =  nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu', a=init_gain)
+            if m.bias is not None:
+                m.bias =  nn.init.constant_(m.bias, 0)
+        # elif isinstance(m, nn.BatchNorm3d):
+        #     nn.init.constant_(m.weight, 1)
+        #     nn.init.constant_(m.bias, 0)
+        # elif isinstance(m, nn.Linear):
+        #     nn.init.normal_(m.weight, 0, init_gain)
+        #     nn.init.constant_(m.bias, 0)
 
 
 
