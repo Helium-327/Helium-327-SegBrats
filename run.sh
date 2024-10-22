@@ -10,9 +10,9 @@ echo "即将开始集合训练"
 # echo "unet3d_bn_res 训练完成"
 
 ## 2024-10-13 20:10
-# python main.py --epochs 1 --data_scale debug --model unet3d_bn_res --early_stop_patience 30 --nw 4 --bs 2 --cosine_T_max 200 --commit 'debug on  unet3d_bn_res' > /dev/null 2> error.log
+# python main.py --epochs 1 --data_scale debug --model unet3d_bn_res --early_stop_patience 30 --nw 4 --bs 2 --cosine_T_max 200 --commit 'debug on  unet3d_bn_res' 
 # python main.py --epochs 1 --data_scale debug --model unet3d_bn_se --early_stop_patience 30 --nw 4 --bs 2 --cosine_T_max 200 --commit 'debug on  unet3d_bn_se'   
-# python main.py --epochs 1 --data_scale debug --model unet3d_bn_res_se --early_stop_patience 30 --nw 4 --bs 2 --cosine_T_max 200 --commit 'debug on  unet3d_bn_res_se' > /dev/null 2> error.log
+# python main.py --epochs 1 --data_scale debug --model unet3d_bn_res_se --early_stop_patience 30 --nw 4 --bs 2 --cosine_T_max 200 --commit 'debug on  unet3d_bn_res_se' 
 
 # # 检查上一个命令的退出状态
 # if [ $? -eq 0 ]; then
@@ -24,9 +24,9 @@ echo "即将开始集合训练"
 #     cat error.log >> debug_error.txt
 # fi
 
-# python main.py --epochs 200 --data_scale full --model unet3d_bn_res --early_stop_patience 30 --nw 4 --bs 2 --cosine_T_max 200 --commit 'fully trainging on fixbug unet3d_bn_res' > /dev/null 2> error.log
-# python main.py --epochs 200 --data_scale full --model unet3d_bn_se --early_stop_patience 30 --nw 4 --bs 2 --cosine_T_max 200 --commit 'fully trainging on unet3d_bn_se' > /dev/null 2> error.log
-# python main.py --epochs 200 --data_scale full --model unet3d_bn_res_se --early_stop_patience 30 --nw 4 --bs 2 --cosine_T_max 200 --commit 'fully trainging on unet3d_bn_res_se' > /dev/null 2> error.log
+# python main.py --epochs 200 --data_scale full --model unet3d_bn_res --early_stop_patience 30 --nw 4 --bs 2 --cosine_T_max 200 --commit 'fully trainging on fixbug unet3d_bn_res' 
+# python main.py --epochs 200 --data_scale full --model unet3d_bn_se --early_stop_patience 30 --nw 4 --bs 2 --cosine_T_max 200 --commit 'fully trainging on unet3d_bn_se' 
+# python main.py --epochs 200 --data_scale full --model unet3d_bn_res_se --early_stop_patience 30 --nw 4 --bs 2 --cosine_T_max 200 --commit 'fully trainging on unet3d_bn_res_se' 
 
 # # 检查上一个命令的退出状态
 # if [ $? -eq 0 ]; then
@@ -127,14 +127,48 @@ echo "即将开始集合训练"
 # python main.py --epochs 200 --data_scale full --model unet3d_bn --early_stop_patience 30 --nw 4 --bs 2 --cosine_T_max 200 --commit "fully trainging on newly unet3d_bn"
 
 # 2024-10-21
-python inference.py --model unet3d_bn --ckpt_path "/root/workspace/Helium-327-SegBrats/results/2024-10-20/2024-10-20_22-00-11/checkpoints/UNet3D_BN_best_ckpt@epoch107_diceloss0.1365_dice0.8860_21.pth"
 
+# python main.py --epochs 200 --data_scale full --model unet3d_bn --early_stop_patience 30 --nw 4 --bs 2 --cosine_T_max 200 --commit "fully trainging on newly unet3d_bn"
+
+# # 检查上一个命令的退出状态
+# if [ $? -eq 0 ]; then
+#     echo "😃😃😃模型推理完成"
+# else
+#     echo "训练出现错误" 
+#     error_time=$(date "+%Y-%m-%d %H:%M:%S")
+#     echo "错误时间: $error_time\n" >> inference_error.txt
+#     cat error.log >> inference_error.txt
+# fi
+
+# 2024-10-21 21:39
+# python main.py --epochs 1 --data_scale debug --model f_cac_unet3d --early_stop_patience 30 --nw 4 --bs 2 --cosine_T_max 200 --commit 'debug on  f_cac_unet3d'
+# python main.py --epochs 1 --data_scale debug --model up_cac_unet3d --early_stop_patience 30 --nw 4 --bs 2 --cosine_T_max 200 --commit 'debug on  up_cac_unet3d'   
+# python main.py --epochs 1 --data_scale debug --model down_cac_unet3d --early_stop_patience 30 --nw 4 --bs 2 --cosine_T_max 200 --commit 'debug on  down_cac_unet3d' 
+
+
+# python main.py --epochs 200 --data_scale full --model f_cac_unet3d --early_stop_patience 30 --nw 4 --bs 2 --cosine_T_max 200 --commit 'fully trainging on fixbug f_cac_unet3d' 
+# python main.py --epochs 200 --data_scale full --model up_cac_unet3d --early_stop_patience 30 --nw 4 --bs 2 --cosine_T_max 200 --commit 'fully trainging on up_cac_unet3d' 
+# python main.py --epochs 200 --data_scale full --model down_cac_unet3d --early_stop_patience 30 --nw 4 --bs 2 --cosine_T_max 200 --commit 'fully trainging on down_cac_unet3d' 
+
+# # 检查上一个命令的退出状态
+# if [ $? -eq 0 ]; then
+#     echo "debug完成。 可以正常开始训练" 
+# else
+#     echo "debug出现错误" 
+#     error_time=$(date "+%Y-%m-%d %H:%M:%S")
+#     echo "错误时间: $error_time\n" >> debug_error.txt
+#     cat error.log >> debug_error.txt
+# fi
+
+python main.py --epochs 200 --data_scale debug --model down_cac_unet3d --early_stop_patience 30 --nw 2 --bs 2 --cosine_T_max 200 --commit 'debug on  down_cac_unet3d'
 # 检查上一个命令的退出状态
 if [ $? -eq 0 ]; then
-    echo "😃😃😃模型推理完成"
+    echo "debug完成。 可以正常开始训练" 
 else
-    echo "训练出现错误" 
+    echo "debug出现错误" 
     error_time=$(date "+%Y-%m-%d %H:%M:%S")
-    echo "错误时间: $error_time\n" >> inference_error.txt
-    cat error.log >> inference_error.txt
+    echo "错误时间: $error_time\n" >> debug_error.txt
+    cat error.log >> debug_error.txt
 fi
+
+# python inference.py --model down_cac_unet3d --ckpt_path "/root/workspace/Helium-327-SegBrats/results/2024-10-22/2024-10-22_11-19-43/checkpoints/best@e17_Down_CAC_UNET3D__diceloss0.2331_dice0.7989_2024-10-22_11-19-43_10.pth"

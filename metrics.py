@@ -88,18 +88,26 @@ class EvaluationMetrics:
 
         # 计算每个类别的Dice系数
         pred_list, mask_list = self.pre_processing(y_pred, y_mask) # 获取子区的预测标签和真实标签
+
+        
         for sub_area, sub_pred, sub_mask in zip(self.sub_areas, pred_list, mask_list):
             intersection = (sub_pred * sub_mask).sum(dim=(-3, -2, -1))
             union = sub_pred.sum(dim=(-3, -2, -1)) + sub_mask.sum(dim=(-3, -2, -1))
             dice_c = (2. * intersection + self.smooth) / (union + self.smooth)
             dice_coeffs[sub_area] = dice_c.mean()
         
+        intersection = (y_pred * y_mask).sum(dim=(-3, -2, -1))
+        union = y_pred.sum(dim=(-3, -2, -1)) + y_mask.sum(dim=(-3, -2, -1))
+        dice = (2. * intersection + self.smooth) / (union + self.smooth)
+        dice_coeffs['global mean'] = dice.mean()
+
         # 提取特定类别的Dice系数
         et_dice = dice_coeffs['ET'].item()
         tc_dice = dice_coeffs['TC'].item()
         wt_dice = dice_coeffs['WT'].item()
 
         mean_dice = (et_dice + tc_dice + wt_dice) / 3
+        global_mean_dice = dice_coeffs['global mean'].item()
         
         return mean_dice, et_dice, tc_dice, wt_dice
     

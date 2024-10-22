@@ -47,7 +47,7 @@ class CPCA(nn.Module):
         self.dconv11_1 = nn.Conv3d(channels, channels, kernel_size=(11, 1), padding=(5, 0), groups=channels)
         self.dconv1_21 = nn.Conv3d(channels, channels, kernel_size=(1, 21), padding=(0, 10), groups=channels)
         self.dconv21_1 = nn.Conv3d(channels, channels, kernel_size=(21, 1), padding=(10, 0), groups=channels)
-        self.conv = nn.Conv3d(channels, channels, kernel_size=(1, 1), padding=0)
+        self.conv = nn.Conv3d(channels, channels, kernel_size=1, padding=0)
         self.act = nn.GELU()
 
     def forward(self, inputs):
@@ -66,5 +66,7 @@ class CPCA(nn.Module):
         out = spatial_att * inputs
         out = self.conv(out)
         return out
+    
+
     
 

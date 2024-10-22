@@ -31,15 +31,20 @@ from utils.ckpt_save_load import load_checkpoint
 # from utils.splitDataList import DataSpliter
 from utils.get_commits import *
 
-from nets.unet3d.unet3d_bn import UNet3D_BN, UNet3D_ResBN, UNet3D_BN_SE, UNet3D_ResBN_SE
-from nets.unet3d.unet3d_ln import UNet3D_LN
-from nets.unet3d.unet3d_CBAM import unet3d_CBAM
-from nets.unet3d.unet3d_5x5 import UNet3D_BN_5x5
-from nets.unet3d.uent3d_dilation import UNet3D_dilation, UNet3D_ResDilation
-from nets.unet3d.uent3d_ResSE import UNet3D_ResSE
+from nets.unet3d.unet3d import *
 from nets.unet3d.pspnet import PSPNET
+# from nets.unet3d.src.unet3d_bn import UNet3D_BN, UNet3D_ResBN, UNet3D_BN_SE, UNet3D_ResBN_SE
+# from nets.unet3d.unet3d_ln import UNet3D_LN
+# from nets.unet3d.unet3d_CBAM import unet3d_CBAM
+# from nets.unet3d.unet3d_5x5 import UNet3D_BN_5x5
+# from nets.unet3d.uent3d_dilation import UNet3D_dilation, UNet3D_ResDilation
+# from nets.unet3d.temp.uent3d_ResSE import UNet3D_ResSE
+# from nets.unet3d.pspnet import PSPNET
 
 from utils.plot_tools.plot_results import NiiViewer
+
+date_str = get_current_date() + '_' + get_current_time()
+
 
 def inference(test_loader, model, Metricer, output_path, device, affine, window_size=(128, 128, 128), stride_size=(13, 28, 28), save_flag=False):
     """
@@ -160,32 +165,21 @@ def main(args):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     test_csv = args.test_csv
     # 初始化模型
-    if args.model == 'unet3d_bn':
-        model = UNet3D_BN(4, 4)
-    elif args.model == 'unet3d_bn_se':
-        model = UNet3D_BN_SE(4, 4)
-    elif args.model == 'unet3d_bn_res':
-        model = UNet3D_ResBN(4, 4)
-    elif args.model == 'unet3d_resSE':
-        model = UNet3D_ResSE(4, 4)
-    elif args.model == "unet3d_cbam":
-        model = unet3d_CBAM(4, 4)
-    elif args.model == 'unet3d_bn_res_se':
-        model = UNet3D_ResBN_SE(4, 4)
-    elif args.model == 'unet3d_ln':
-        model = UNet3D_LN(4, 4)
-    elif args.model == 'unet3d_bn_5x5':
-        model = UNet3D_BN_5x5(4, 4)
-    elif args.model == 'unet3d_dilation':
-        model = UNet3D_dilation(4, 4)
-    elif args.model == 'unet3d_dilation_res':
-        model = UNet3D_ResDilation(4, 4)
+    if args.model == 'unet3d':
+        model = UNET3D(4, 4, [32, 64, 128, 256])
+    elif args.model == 'f_cac_unet3d':
+        model = F_CAC_UNET3D(4, 4, [32, 64, 128, 256])
+    elif args.model == 'up_cac_unet3d':
+        model = Up_CAC_UNET3D(4, 4, [32, 64, 128, 256])
+    elif args.model == 'down_cac_unet3d':
+        model = Down_CAC_UNET3D(4, 4, [32, 64, 128, 256])
+    elif args.model == 'res_unet3d':
+        model = Res_UNET3D(4, 4, [32, 64, 128, 256])
     elif args.model == 'pspnet':
         model = PSPNET(nn.Conv3d, nn.BatchNorm3d, nn.ReLU, 4, in_channel=4, mid_channels=128, out_channels=128, num_classes=4, img_size=128)
     else:
         raise ValueError(f"Invalid model name: {args.model}")
     
-
     optimizer = AdamW(model.parameters(), lr=0.001, betas=(0.9, 0.99), weight_decay=1e-5)
     scaler = GradScaler()
     Metricer = EvaluationMetrics()
@@ -234,7 +228,7 @@ def main(args):
     # affine = -np.eye(4) #! 调整图像的方向
 
 
-    dir_str = os.path.splitext(os.path.basename(args.ckpt_path))[0]
+    dir_str = date_str + '_' +  os.path.splitext(os.path.basename(args.ckpt_path))[0]
     outputs_path = os.path.join(args.outputs_root, dir_str)
 
     inference(test_loader, model, Metricer, outputs_path, device, affine, save_flag=args.save_flag)
@@ -247,13 +241,14 @@ def main(args):
         # viewer.show_color_map(slice_n=100)
         # viewer.show_all_slices()
         # viewer.show_montage()
+    
     print("😃😃well done")
 
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description="inference args")
     # parser.add_argument("--model_name", type=str, default="unet3d_bn_res", help="model name")
-    parser.add_argument("--data_scale", type=str, default="full", help="loading data scale")
+    parser.add_argument("--data_scale", type=str, default="small", help="loading data scale")
     parser.add_argument("--data_len", type=int, default=10, help="train length")
     parser.add_argument("--test_csv", type=str, default="./brats21_local/test.csv", help="test csv file path")
     parser.add_argument("--ckpt_path", type=str, default="/root/workspace/Helium-327-SegBrats/results/2024-10-12/2024-10-12_20-27-38/checkpoints/UNet3D_BN_best_ckpt@epoch107_diceloss0.1372_dice0.8838_16.pth", help='inference model path')

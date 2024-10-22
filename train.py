@@ -252,7 +252,7 @@ def train(model, Metrics, train_loader, val_loader, scaler, optimizer, scheduler
                     
                 # 保存最佳模型
                 save_counter += 1
-                best_ckpt_path = os.path.join(ckpt_dir, f'{model_name}_best_ckpt@epoch{best_epoch}_{loss_func_name.lower()}{best_val_loss:.4f}_dice{best_dice:.4f}_{save_counter}.pth')
+                best_ckpt_path = os.path.join(ckpt_dir, f'best@e{best_epoch}_{model_name}__{loss_func_name.lower()}{best_val_loss:.4f}_dice{best_dice:.4f}_{date_time_str}_{save_counter}.pth')
                 if save_counter > save_max:
                     removed_ckpt = [ckpt for ckpt in os.listdir(ckpt_dir) if (ckpt.endswith('.pth') and (int(ckpt.split('.')[-2].split('_')[-1]) == int(save_counter - save_max)))] # 获取要删除的文件名
                     os.remove(os.path.join(ckpt_dir, removed_ckpt[0]))

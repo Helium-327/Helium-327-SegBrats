@@ -35,7 +35,7 @@ class UNet3D_BN(nn.Module):
                  dropout_rate:float=0.2, 
                  use_dropout:bool=True, 
                  ln_spatial_shape:list=[],
-                 features = [16, 32, 64, 128, 256]):
+                 features = [32, 64, 128, 256]):
         super(UNet3D_BN, self).__init__()
         self.encoder_features = features
         self.decoder_features = (features + [features[-1]*2])[::-1]
@@ -245,10 +245,12 @@ class UNet3D_BN_SE(nn.Module):
             CBR_Block_3x3(64, 128),
             CBR_Block_3x3(128, 128),
         )
+        
         self.encoder4 = nn.Sequential(
             CBR_Block_3x3(128, 256),
             CBR_Block_3x3(256, 256),
         )
+
         self.encoder5 = nn.Sequential(
             CBR_Block_3x3(256, 512),
             CBR_Block_3x3(512, 512),

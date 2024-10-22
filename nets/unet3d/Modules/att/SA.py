@@ -1,11 +1,13 @@
 # -*- coding: UTF-8 -*-
 '''
 ================================================
-*      CREATE ON: 2024/10/09 12:14:52
+*      CREATE ON: 2024/10/22 14:30:15
 *      AUTHOR: @Junyin Xiong
-*      DESCRIPTION: self-attention #TODO: 待修改
+*      DESCRIPTION: 自注意力机制
 =================================================
 '''
+
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -40,16 +42,3 @@ class SelfAttention3D(nn.Module):
         out = self.gamma * out + x
         
         return out
-
-if __name__ == '__main__':
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-    # Example usage:
-    in_channels = 64  # This should match the number of channels in your 3D input data
-    attention_layer = SelfAttention3D(in_channels=in_channels).to(device=device)
-    input_data = torch.randn(1, 64, 64, 64, 64).to(device)
-    print(attention_layer(input_data).shape)
-
-    # Assuming 'input_3d' is your 3D input tensor with shape (batch_size, channels, depth, height, width)
-    # input_3d = torch.randn(batch_size, in_channels, depth, height, width)
-    # output_3d = attention_layer(input_3d)
