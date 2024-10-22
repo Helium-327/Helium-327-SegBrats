@@ -1,0 +1,1 @@
+python inference.py --model f_cac_unet3d --data_scale small --data_len 4 --ckpt_path "/root/data/workspace/Helium-327-SegBrats/results/2024-10-22/2024-10-22_14-48-22/checkpoints/best@e6_F_CAC_UNET3D__diceloss0.2092_dice0.8112_2024-10-22_14-48-23_5.pth"

@@ -1,117 +1,0 @@
-错误时间: 2024-10-17 21:54:51
-
-2024-10-16 22:06:38,561 - INFO - 开始训练, 训练轮数:200, PSPNET模型写入tensorBoard, 使用 AdamW 优化器, 学习率: 0.0005, 损失函数: DiceLoss
-🛠️--Training:   0%|          | 0/500 [00:00<?, ?it/s]🛠️--Training:   0%|          | 1/500 [00:14<2:02:20, 14.71s/it]🛠️--Training:   0%|          | 2/500 [00:15<51:42,  6.23s/it]  🛠️--Training:   1%|          | 3/500 [00:15<28:56,  3.49s/it]🛠️--Training:   1%|          | 4/500 [00:15<18:16,  2.21s/it]🛠️--Training:   1%|          | 5/500 [00:15<12:24,  1.50s/it]🛠️--Training:   1%|          | 6/500 [00:15<08:53,  1.08s/it]                                                             Traceback (most recent call last):
-  File "/root/workspace/Helium-327-SegBrats/main.py", line 321, in <module>
-    main(args=args)
-  File "/root/workspace/Helium-327-SegBrats/main.py", line 254, in main
-    train(model, 
-  File "/root/workspace/Helium-327-SegBrats/train.py", line 102, in train
-    train_running_loss, train_et_loss, train_tc_loss, train_wt_loss = train_one_epoch(model, train_loader, scaler, optimizer, loss_function, device)
-  File "/root/workspace/Helium-327-SegBrats/train_and_val.py", line 60, in train_one_epoch
-    vimage, mask = data[0].to(device), data[1].to(device)
-KeyboardInterrupt
-错误时间: 2024-10-19 09:31:14
-
-2024-10-16 22:06:38,561 - INFO - 开始训练, 训练轮数:200, PSPNET模型写入tensorBoard, 使用 AdamW 优化器, 学习率: 0.0005, 损失函数: DiceLoss
-🛠️--Training:   0%|          | 0/500 [00:00<?, ?it/s]🛠️--Training:   0%|          | 1/500 [00:14<2:02:20, 14.71s/it]🛠️--Training:   0%|          | 2/500 [00:15<51:42,  6.23s/it]  🛠️--Training:   1%|          | 3/500 [00:15<28:56,  3.49s/it]🛠️--Training:   1%|          | 4/500 [00:15<18:16,  2.21s/it]🛠️--Training:   1%|          | 5/500 [00:15<12:24,  1.50s/it]🛠️--Training:   1%|          | 6/500 [00:15<08:53,  1.08s/it]                                                             Traceback (most recent call last):
-  File "/root/workspace/Helium-327-SegBrats/main.py", line 321, in <module>
-    main(args=args)
-  File "/root/workspace/Helium-327-SegBrats/main.py", line 254, in main
-    train(model, 
-  File "/root/workspace/Helium-327-SegBrats/train.py", line 102, in train
-    train_running_loss, train_et_loss, train_tc_loss, train_wt_loss = train_one_epoch(model, train_loader, scaler, optimizer, loss_function, device)
-  File "/root/workspace/Helium-327-SegBrats/train_and_val.py", line 60, in train_one_epoch
-    vimage, mask = data[0].to(device), data[1].to(device)
-KeyboardInterrupt
-错误时间: 2024-10-19 09:31:18
-
-2024-10-16 22:06:38,561 - INFO - 开始训练, 训练轮数:200, PSPNET模型写入tensorBoard, 使用 AdamW 优化器, 学习率: 0.0005, 损失函数: DiceLoss
-🛠️--Training:   0%|          | 0/500 [00:00<?, ?it/s]🛠️--Training:   0%|          | 1/500 [00:14<2:02:20, 14.71s/it]🛠️--Training:   0%|          | 2/500 [00:15<51:42,  6.23s/it]  🛠️--Training:   1%|          | 3/500 [00:15<28:56,  3.49s/it]🛠️--Training:   1%|          | 4/500 [00:15<18:16,  2.21s/it]🛠️--Training:   1%|          | 5/500 [00:15<12:24,  1.50s/it]🛠️--Training:   1%|          | 6/500 [00:15<08:53,  1.08s/it]                                                             Traceback (most recent call last):
-  File "/root/workspace/Helium-327-SegBrats/main.py", line 321, in <module>
-    main(args=args)
-  File "/root/workspace/Helium-327-SegBrats/main.py", line 254, in main
-    train(model, 
-  File "/root/workspace/Helium-327-SegBrats/train.py", line 102, in train
-    train_running_loss, train_et_loss, train_tc_loss, train_wt_loss = train_one_epoch(model, train_loader, scaler, optimizer, loss_function, device)
-  File "/root/workspace/Helium-327-SegBrats/train_and_val.py", line 60, in train_one_epoch
-    vimage, mask = data[0].to(device), data[1].to(device)
-KeyboardInterrupt
-错误时间: 2024-10-19 09:31:49
-
-2024-10-16 22:06:38,561 - INFO - 开始训练, 训练轮数:200, PSPNET模型写入tensorBoard, 使用 AdamW 优化器, 学习率: 0.0005, 损失函数: DiceLoss
-🛠️--Training:   0%|          | 0/500 [00:00<?, ?it/s]🛠️--Training:   0%|          | 1/500 [00:14<2:02:20, 14.71s/it]🛠️--Training:   0%|          | 2/500 [00:15<51:42,  6.23s/it]  🛠️--Training:   1%|          | 3/500 [00:15<28:56,  3.49s/it]🛠️--Training:   1%|          | 4/500 [00:15<18:16,  2.21s/it]🛠️--Training:   1%|          | 5/500 [00:15<12:24,  1.50s/it]🛠️--Training:   1%|          | 6/500 [00:15<08:53,  1.08s/it]                                                             Traceback (most recent call last):
-  File "/root/workspace/Helium-327-SegBrats/main.py", line 321, in <module>
-    main(args=args)
-  File "/root/workspace/Helium-327-SegBrats/main.py", line 254, in main
-    train(model, 
-  File "/root/workspace/Helium-327-SegBrats/train.py", line 102, in train
-    train_running_loss, train_et_loss, train_tc_loss, train_wt_loss = train_one_epoch(model, train_loader, scaler, optimizer, loss_function, device)
-  File "/root/workspace/Helium-327-SegBrats/train_and_val.py", line 60, in train_one_epoch
-    vimage, mask = data[0].to(device), data[1].to(device)
-KeyboardInterrupt
-错误时间: 2024-10-19 09:35:18
-
-2024-10-16 22:06:38,561 - INFO - 开始训练, 训练轮数:200, PSPNET模型写入tensorBoard, 使用 AdamW 优化器, 学习率: 0.0005, 损失函数: DiceLoss
-🛠️--Training:   0%|          | 0/500 [00:00<?, ?it/s]🛠️--Training:   0%|          | 1/500 [00:14<2:02:20, 14.71s/it]🛠️--Training:   0%|          | 2/500 [00:15<51:42,  6.23s/it]  🛠️--Training:   1%|          | 3/500 [00:15<28:56,  3.49s/it]🛠️--Training:   1%|          | 4/500 [00:15<18:16,  2.21s/it]🛠️--Training:   1%|          | 5/500 [00:15<12:24,  1.50s/it]🛠️--Training:   1%|          | 6/500 [00:15<08:53,  1.08s/it]                                                             Traceback (most recent call last):
-  File "/root/workspace/Helium-327-SegBrats/main.py", line 321, in <module>
-    main(args=args)
-  File "/root/workspace/Helium-327-SegBrats/main.py", line 254, in main
-    train(model, 
-  File "/root/workspace/Helium-327-SegBrats/train.py", line 102, in train
-    train_running_loss, train_et_loss, train_tc_loss, train_wt_loss = train_one_epoch(model, train_loader, scaler, optimizer, loss_function, device)
-  File "/root/workspace/Helium-327-SegBrats/train_and_val.py", line 60, in train_one_epoch
-    vimage, mask = data[0].to(device), data[1].to(device)
-KeyboardInterrupt
-错误时间: 2024-10-20 09:16:02
-
-2024-10-16 22:06:38,561 - INFO - 开始训练, 训练轮数:200, PSPNET模型写入tensorBoard, 使用 AdamW 优化器, 学习率: 0.0005, 损失函数: DiceLoss
-🛠️--Training:   0%|          | 0/500 [00:00<?, ?it/s]🛠️--Training:   0%|          | 1/500 [00:14<2:02:20, 14.71s/it]🛠️--Training:   0%|          | 2/500 [00:15<51:42,  6.23s/it]  🛠️--Training:   1%|          | 3/500 [00:15<28:56,  3.49s/it]🛠️--Training:   1%|          | 4/500 [00:15<18:16,  2.21s/it]🛠️--Training:   1%|          | 5/500 [00:15<12:24,  1.50s/it]🛠️--Training:   1%|          | 6/500 [00:15<08:53,  1.08s/it]                                                             Traceback (most recent call last):
-  File "/root/workspace/Helium-327-SegBrats/main.py", line 321, in <module>
-    main(args=args)
-  File "/root/workspace/Helium-327-SegBrats/main.py", line 254, in main
-    train(model, 
-  File "/root/workspace/Helium-327-SegBrats/train.py", line 102, in train
-    train_running_loss, train_et_loss, train_tc_loss, train_wt_loss = train_one_epoch(model, train_loader, scaler, optimizer, loss_function, device)
-  File "/root/workspace/Helium-327-SegBrats/train_and_val.py", line 60, in train_one_epoch
-    vimage, mask = data[0].to(device), data[1].to(device)
-KeyboardInterrupt
-错误时间: 2024-10-20 09:16:18
-
-2024-10-16 22:06:38,561 - INFO - 开始训练, 训练轮数:200, PSPNET模型写入tensorBoard, 使用 AdamW 优化器, 学习率: 0.0005, 损失函数: DiceLoss
-🛠️--Training:   0%|          | 0/500 [00:00<?, ?it/s]🛠️--Training:   0%|          | 1/500 [00:14<2:02:20, 14.71s/it]🛠️--Training:   0%|          | 2/500 [00:15<51:42,  6.23s/it]  🛠️--Training:   1%|          | 3/500 [00:15<28:56,  3.49s/it]🛠️--Training:   1%|          | 4/500 [00:15<18:16,  2.21s/it]🛠️--Training:   1%|          | 5/500 [00:15<12:24,  1.50s/it]🛠️--Training:   1%|          | 6/500 [00:15<08:53,  1.08s/it]                                                             Traceback (most recent call last):
-  File "/root/workspace/Helium-327-SegBrats/main.py", line 321, in <module>
-    main(args=args)
-  File "/root/workspace/Helium-327-SegBrats/main.py", line 254, in main
-    train(model, 
-  File "/root/workspace/Helium-327-SegBrats/train.py", line 102, in train
-    train_running_loss, train_et_loss, train_tc_loss, train_wt_loss = train_one_epoch(model, train_loader, scaler, optimizer, loss_function, device)
-  File "/root/workspace/Helium-327-SegBrats/train_and_val.py", line 60, in train_one_epoch
-    vimage, mask = data[0].to(device), data[1].to(device)
-KeyboardInterrupt
-错误时间: 2024-10-21 10:51:53
-
-2024-10-16 22:06:38,561 - INFO - 开始训练, 训练轮数:200, PSPNET模型写入tensorBoard, 使用 AdamW 优化器, 学习率: 0.0005, 损失函数: DiceLoss
-🛠️--Training:   0%|          | 0/500 [00:00<?, ?it/s]🛠️--Training:   0%|          | 1/500 [00:14<2:02:20, 14.71s/it]🛠️--Training:   0%|          | 2/500 [00:15<51:42,  6.23s/it]  🛠️--Training:   1%|          | 3/500 [00:15<28:56,  3.49s/it]🛠️--Training:   1%|          | 4/500 [00:15<18:16,  2.21s/it]🛠️--Training:   1%|          | 5/500 [00:15<12:24,  1.50s/it]🛠️--Training:   1%|          | 6/500 [00:15<08:53,  1.08s/it]                                                             Traceback (most recent call last):
-  File "/root/workspace/Helium-327-SegBrats/main.py", line 321, in <module>
-    main(args=args)
-  File "/root/workspace/Helium-327-SegBrats/main.py", line 254, in main
-    train(model, 
-  File "/root/workspace/Helium-327-SegBrats/train.py", line 102, in train
-    train_running_loss, train_et_loss, train_tc_loss, train_wt_loss = train_one_epoch(model, train_loader, scaler, optimizer, loss_function, device)
-  File "/root/workspace/Helium-327-SegBrats/train_and_val.py", line 60, in train_one_epoch
-    vimage, mask = data[0].to(device), data[1].to(device)
-KeyboardInterrupt
-错误时间: 2024-10-21 10:52:03
-
-2024-10-16 22:06:38,561 - INFO - 开始训练, 训练轮数:200, PSPNET模型写入tensorBoard, 使用 AdamW 优化器, 学习率: 0.0005, 损失函数: DiceLoss
-🛠️--Training:   0%|          | 0/500 [00:00<?, ?it/s]🛠️--Training:   0%|          | 1/500 [00:14<2:02:20, 14.71s/it]🛠️--Training:   0%|          | 2/500 [00:15<51:42,  6.23s/it]  🛠️--Training:   1%|          | 3/500 [00:15<28:56,  3.49s/it]🛠️--Training:   1%|          | 4/500 [00:15<18:16,  2.21s/it]🛠️--Training:   1%|          | 5/500 [00:15<12:24,  1.50s/it]🛠️--Training:   1%|          | 6/500 [00:15<08:53,  1.08s/it]                                                             Traceback (most recent call last):
-  File "/root/workspace/Helium-327-SegBrats/main.py", line 321, in <module>
-    main(args=args)
-  File "/root/workspace/Helium-327-SegBrats/main.py", line 254, in main
-    train(model, 
-  File "/root/workspace/Helium-327-SegBrats/train.py", line 102, in train
-    train_running_loss, train_et_loss, train_tc_loss, train_wt_loss = train_one_epoch(model, train_loader, scaler, optimizer, loss_function, device)
-  File "/root/workspace/Helium-327-SegBrats/train_and_val.py", line 60, in train_one_epoch
-    vimage, mask = data[0].to(device), data[1].to(device)
-KeyboardInterrupt

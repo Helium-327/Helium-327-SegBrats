@@ -270,50 +270,116 @@ def main(args):
           resume_tb_path=resume_tb_path)
 
 if __name__ == "__main__":
+    # 实例化参数容器
     parser = argparse.ArgumentParser(description="Train args")
 
-    parser.add_argument("--data_root" , type=str, default="./brats21_local", help="data root")
-    parser.add_argument("--results_root", type=str, default="./results", help="result path")
-    parser.add_argument("--resume", type=str, default=None, help="resume training from checkpoint")
+    # 训练基本设置
+    parser.add_argument("--epochs", type=int, 
+                        default=200, help="num_epochs")
+    parser.add_argument("--nw", type=int, 
+                        default=4, 
+                        help="num_workers")
+    parser.add_argument("--bs", type=int, 
+                        default=2, 
+                        help="batch_size")
+    # 模型相关的参数
+    parser.add_argument("--model", type=str, 
+                        default="down_cac_unet3d", help="")
+    parser.add_argument("--input_channels", type=int, 
+                        default=4, 
+                        help="input channels")
+    parser.add_argument("--output_channels", type=int, 
+                        default=4, 
+                        help="output channels")
+    parser.add_argument("--total_parms", type=int, 
+                        default=None, 
+                        required=False, help="total parameters")
+    parser.add_argument("--early_stop_patience", type=int, 
+                        default=30, 
+                        help="early stop patience")
+    parser.add_argument("--resume", type=str, 
+                        default=None, 
+                        help="resume training from checkpoint")
+    # 训练参数
+    parser.add_argument("--loss", type=str, 
+                        default="DiceLoss", 
+                        help="loss function: ['DiceLoss', 'CELoss', 'FocalLoss']")
+    parser.add_argument("--loss_type", type=str, 
+                        default="subarea_mean", 
+                        help="loss type to grad")
+    parser.add_argument("--save_max", type=int, 
+                        default=5, 
+                        help="ckpt max save number")
+    parser.add_argument("--interval", type=int, 
+                        default=1, 
+                        help="checkpoint interval")
     
-    parser.add_argument("--model", type=str, default="down_cac_unet3d", help="")
-    parser.add_argument("--total_parms", type=int, default=None, required=False, help="total parameters")
-    parser.add_argument("--epochs", type=int, default=200, help="num_epochs")
-    parser.add_argument("--nw", type=int, default=4, help="num_workers")
-    parser.add_argument("--bs", type=int, default=2, help="batch_size")
-    parser.add_argument("--early_stop_patience", type=int, default=30, help="early stop patience")
-    
-    parser.add_argument("--input_channels", type=int, default=4, help="input channels")
-    parser.add_argument("--output_channels", type=int, default=4, help="output channels")
-    parser.add_argument("--trainCropSize", type=lambda x: tuple(map(int, x.split(','))), default=(128, 128, 128), help="crop size")
-    parser.add_argument("--valCropSize", type=lambda x: tuple(map(int, x.split(','))), default=(128, 128, 128), help="crop size")
-    
-    parser.add_argument("--loss", type=str, default="DiceLoss", help="loss function: ['DiceLoss', 'CELoss', 'FocalLoss']")
-    parser.add_argument("--loss_type", type=str, default="subarea_mean", help="loss type to grad")
-    parser.add_argument("--save_max", type=int, default=5, help="ckpt max save number")
+    # 优化器
+    parser.add_argument("--optimizer", type=str, 
+                        default="AdamW", 
+                        help="optimizers: ['AdamW', 'SGD', 'RMSprop']")
+    parser.add_argument("--lr", type=float, 
+                        default=3e-4, 
+                        help="learning rate")
+    parser.add_argument("--wd", type=float, 
+                        default=1e-5, 
+                        help="weight decay")
+    # 学习率调度器
+    parser.add_argument("--scheduler", type=str, 
+                        default='CosineAnnealingLR',
+                        help="schedulers:['ReduceLROnPlateau', 'CosineAnnealingLR']")
+    parser.add_argument("--cosine_min_lr", type=float, 
+                        default=1e-6, 
+                        help="CosineAnnealingLR min lr")
+    parser.add_argument("--cosine_T_max", type=int, 
+                        default=300, 
+                        help="CosineAnnealingLR T max")
 
-    parser.add_argument("--optimizer", type=str, default="AdamW", help="optimizers: ['AdamW', 'SGD', 'RMSprop']")
-    parser.add_argument("--lr", type=float, default=5e-4, help="learning rate")
-    parser.add_argument("--wd", type=float, default=1e-5, help="weight decay")
-
-    parser.add_argument("--scheduler", type=str, default='CosineAnnealingLR',    help="schedulers:['ReduceLROnPlateau', 'CosineAnnealingLR']")
-    parser.add_argument("--cosine_min_lr", type=float, default=1e-6, help="CosineAnnealingLR min lr")
-    parser.add_argument("--cosine_T_max", type=int, default=300, help="CosineAnnealingLR T max")
-    # parser.add_argument("--cosine_last_epoch", type=int, default=30, help="CosineAnnealingLR last epoch")
-
-    parser.add_argument("--reduce_patience", type=int, default=3, help="ReduceLROnPlateau scheduler patience")
-    parser.add_argument("--reduce_factor", type=float, default=0.9, help="ReduceLROnPlateau scheduler factor")
+    parser.add_argument("--reduce_patience", type=int, 
+                        default=3, 
+                        help="ReduceLROnPlateau scheduler patience")
+    parser.add_argument("--reduce_factor", type=float, 
+                        default=0.9, 
+                        help="ReduceLROnPlateau scheduler factor")
     
-    parser.add_argument("--data_scale", type=str, default="debug", help="loading data scale")
-    parser.add_argument("--trainSet_len", type=int, default=100, help="train length")
-    parser.add_argument("--valSet_len", type=int, default=12, help="val length")
-    parser.add_argument("--interval", type=int, default=1, help="checkpoint interval")
+    # 数据参数
+    parser.add_argument("--tb", type=bool, 
+                        default=True, 
+                        help="TensorBoard True or False")
+    parser.add_argument("--data_split", type=bool, 
+                        default=False, 
+                        help="data split True or False")
+    parser.add_argument("--ts", type=float, 
+                        default=0.8, 
+                        help="train_split_rata")
+    parser.add_argument("--vs", type=float, 
+                        default=0.1, 
+                        help="val_split_rate")
+    parser.add_argument("--data_root" , type=str, 
+                        default="./brats21_local", 
+                        help="data root")
+    parser.add_argument("--data_scale", type=str, 
+                        default="debug", 
+                        help="loading data scale")
+    parser.add_argument("--trainSet_len", type=int, 
+                        default=100, 
+                        help="train length")
+    parser.add_argument("--valSet_len", type=int, 
+                        default=12, 
+                        help="val length")
+    parser.add_argument("--trainCropSize", type=lambda x: tuple(map(int, x.split(','))), 
+                        default=(128, 128, 128), 
+                        help="crop size")
+    parser.add_argument("--valCropSize", type=lambda x: tuple(map(int, x.split(','))), 
+                        default=(128, 128, 128),
+                        help="crop size")
+    parser.add_argument("--results_root", type=str, 
+                        default="./results", 
+                        help="result path")
     
-    parser.add_argument("--tb", type=bool, default=True, help="TensorBoard True or False")
-    parser.add_argument("--data_split", type=bool, default=False, help="data split True or False")
-    parser.add_argument("--ts", type=float, default=0.8, help="train_split_rata")
-    parser.add_argument("--vs", type=float, default=0.1, help="val_split_rate")
-    parser.add_argument("--commit", type=str, default=None, help="training commit")
+    parser.add_argument("--commit", type=str, 
+                        default=None, 
+                        help="training commit")
 
     args = parser.parse_args()
     main(args=args)

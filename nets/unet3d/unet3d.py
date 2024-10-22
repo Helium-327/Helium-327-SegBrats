@@ -243,11 +243,15 @@ class Down_CAC_UNET3D(nn.Module):
                 # 在两层卷积之间添加注意力机制， 聚焦重要的信息
                 self.encoders.append(CBAM(self.encoders_features[i]))
                 self.encoders.append(CBR_Block_3x3(self.encoders_features[i], self.encoders_features[i]))
-            else:
+            elif (i == len(self.encoders_features) -2) | (i == len(self.encoders_features) -1):
                 self.encoders.append(CBR_Block_3x3(self.encoders_features[i-1], self.encoders_features[i]))
                 # 在两层卷积之间添加注意力机制， 聚焦重要的信息
                 self.encoders.append(CBAM(self.encoders_features[i]))
                 self.encoders.append(CBR_Block_3x3(self.encoders_features[i], self.encoders_features[i]))
+            else:
+                self.encoders.append(CBR_Block_3x3(self.encoders_features[i-1], self.encoders_features[i]))
+                self.encoders.append(CBR_Block_3x3(self.encoders_features[i], self.encoders_features[i]))
+
             # if self.down_att:
             #     self.encoders.append(CBAM(self.encoders_features[i]))
             self.encoders.append(DownSample())
@@ -259,8 +263,8 @@ class Down_CAC_UNET3D(nn.Module):
             else:
                 self.decoders.append(UpSample(self.decoders_features[i], self.decoders_features[i+1], trilinear=False))
                 # CAC
-                self.decoders.append(CBR_Block_3x3(self.decoders_features[i], self.decoders_features[i+1]))
                 # self.decoders.append(CBAM(self.decoders_features[i+1]))
+                self.decoders.append(CBR_Block_3x3(self.decoders_features[i], self.decoders_features[i+1]))
                 self.decoders.append(CBR_Block_3x3(self.decoders_features[i+1], self.decoders_features[i+1]))
             
     def forward(self, x):

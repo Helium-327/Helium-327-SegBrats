@@ -160,7 +160,10 @@ echo "即将开始集合训练"
 #     cat error.log >> debug_error.txt
 # fi
 
-python main.py --epochs 200 --data_scale debug --model down_cac_unet3d --early_stop_patience 30 --nw 2 --bs 2 --cosine_T_max 200 --commit 'debug on  down_cac_unet3d'
+python main.py --epochs 300 --data_scale full --model f_cac_unet3d --early_stop_patience 30 --nw 8 --bs 4 --cosine_T_max 300 --commit 'fully trainging on fixbug f_cac_unet3d' 
+python main.py --epochs 300 --data_scale full --model up_cac_unet3d --early_stop_patience 30 --nw 8 --bs 4 --cosine_T_max 300 --commit 'fully trainging on up_cac_unet3d' 
+python main.py --epochs 300 --data_scale full --model down_cac_unet3d --early_stop_patience 30 --nw 8 --bs 4 --cosine_T_max 300 --commit 'fully trainging on down_cac_unet3d' 
+
 # 检查上一个命令的退出状态
 if [ $? -eq 0 ]; then
     echo "debug完成。 可以正常开始训练" 

@@ -46,7 +46,7 @@ from utils.plot_tools.plot_results import NiiViewer
 date_str = get_current_date() + '_' + get_current_time()
 
 
-def inference(test_loader, model, Metricer, output_path, device, affine, window_size=(128, 128, 128), stride_size=(13, 28, 28), save_flag=False):
+def inference(test_loader, model, Metricer, output_path, device, affine, window_size=(128, 128, 128), stride_ratio=0.5, save_flag=False):
     """
     验证过程：
         1. 使用滑窗预测算法对测试集数据进行推理预测
@@ -67,7 +67,7 @@ def inference(test_loader, model, Metricer, output_path, device, affine, window_
     
     for i, data in enumerate(tqdm(test_loader)):
         vimage, vmask = data[0], data[1]
-        predvimage = slide_window_pred(model, vimage, device, window_size=window_size, stride_size=stride_size)
+        predvimage = slide_window_pred(model, vimage, device, window_size=window_size, stride_ratio=stride_ratio)
 
         # 保存预测结果nii文件
         if save_flag:
@@ -76,7 +76,6 @@ def inference(test_loader, model, Metricer, output_path, device, affine, window_
         # 评估指标
         metrics = Metricer.update(predvimage, vmask)
         Metrics_list += metrics
-
     Metrics_list /= len(test_loader)
 
     test_scorce = {}
@@ -107,23 +106,53 @@ def inference(test_loader, model, Metricer, output_path, device, affine, window_
     custom_logger(metrics_info, log_path, log_time=True)
     print(metrics_info)
 
-def slide_window_pred(model, test_data, device, window_size, stride_size):
+# def slide_window_pred(model, test_data, device, window_size, stride_size):
+#     N, C, D, H, W = test_data.shape
+#     model.eval()
+
+#     with torch.no_grad():
+#         with autocast(device_type='cuda'):
+#             pred_mask = torch.zeros_like(test_data)
+#             for d in range(0, D - window_size[0]+1, stride_size[0]): # D 维度
+#                 for h in range(0, H - window_size[1]+1, stride_size[1]): # H 维度
+#                     for w in range(0, W - window_size[2]+1, stride_size[2]): # W 维度
+#                         patch = test_data[:, :, d:d+window_size[0], h:h+window_size[1], w:w+window_size[2]]
+#                         patch = patch.to(device)
+
+#                         pred = model(patch)
+
+#                         # 将预测结果保存到原始图像的对应位置
+#                         pred_mask[:, :, d:d+window_size[0], h:h+window_size[1], w:w+window_size[2]] = pred
+
+#     return pred_mask
+
+def slide_window_pred(model, test_data, device, window_size, stride_ratio=0.5):
+# 改进自动计算stride的大小，并添加防止溢出的机制。
     N, C, D, H, W = test_data.shape
     model.eval()
 
+    # 根据窗口大小和比例因子计算stride
+    stride_size = (int(D * stride_ratio), int(H * stride_ratio), int(W * stride_ratio))
+
     with torch.no_grad():
-        with autocast(device_type='cuda'):
+        with torch.cuda.amp.autocast():  # 使用自动混合精度
             pred_mask = torch.zeros_like(test_data)
-            for d in range(0, D - window_size[0]+1, stride_size[0]): # D 维度
-                for h in range(0, H - window_size[1]+1, stride_size[1]): # H 维度
-                    for w in range(0, W - window_size[2]+1, stride_size[2]): # W 维度
-                        patch = test_data[:, :, d:d+window_size[0], h:h+window_size[1], w:w+window_size[2]]
+            for d in range(0, D - window_size[0] + 1, stride_size[0]):  # D 维度
+                for h in range(0, H - window_size[1] + 1, stride_size[1]):  # H 维度
+                    for w in range(0, W - window_size[2] + 1, stride_size[2]):  # W 维度
+
+                        # 计算当前窗口的结束索引，并确保它不会超出边界
+                        end_d = min(D, d + window_size[0])
+                        end_h = min(H, h + window_size[1])
+                        end_w = min(W, w + window_size[2])
+                        
+                        patch = test_data[:, :, d:end_d, h:end_h, w:end_w]
                         patch = patch.to(device)
 
                         pred = model(patch)
 
                         # 将预测结果保存到原始图像的对应位置
-                        pred_mask[:, :, d:d+window_size[0], h:h+window_size[1], w:w+window_size[2]] = pred
+                        pred_mask[:, :, d:end_d, h:end_h, w:end_w] = pred
 
     return pred_mask
 
@@ -132,6 +161,7 @@ def save_nii(predvimage, vimage, vmask, output_path, affine, i):
     # 降维，选出概率最大的类索引值
     test_output_argmax = torch.argmax(predvimage, dim=1).to(dtype=torch.int64) 
     num = 0
+
     # 获取测试集的输入图像和预测输出的图像数据
     save_input_t1 = vimage[num, 0, ...].permute(1, 2, 0).cpu().detach().numpy().astype(np.float32)
     save_input_t1ce = vimage[num, 1, ...].permute(1, 2, 0).cpu().detach().numpy().astype(np.float32)
@@ -161,9 +191,11 @@ def save_nii(predvimage, vimage, vmask, output_path, affine, i):
 
     print(f"P{i} pred save successfully! path on {output_path}")
 
+
 def main(args):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     test_csv = args.test_csv
+
     # 初始化模型
     if args.model == 'unet3d':
         model = UNET3D(4, 4, [32, 64, 128, 256])
@@ -195,12 +227,6 @@ def main(args):
                                                         #  tioRandomFlip3d(),   
                                                          Normalize(mean=(0.114, 0.090, 0.170, 0.096), std=(0.199, 0.151, 0.282, 0.174)),   # 标准化
                                         ]))
-
-    # test_dataset  = BraTS21_3d(test_csv, 
-    #                         transform=TransMethods_test, 
-    #                         local_train=True, 
-    #                         length=10)
-    
     if args.data_scale == "full":
         test_dataset  = BraTS21_3d(test_csv, 
                                 transform=TransMethods_test)
@@ -218,7 +244,6 @@ def main(args):
                             num_workers=4, 
                             shuffle=False)
 
-
     os.makedirs(args.outputs_root, exist_ok=True)
 
     affine = np.array([[ -1.,  -0.,  -0.,   0.],
@@ -232,29 +257,34 @@ def main(args):
     outputs_path = os.path.join(args.outputs_root, dir_str)
 
     inference(test_loader, model, Metricer, outputs_path, device, affine, save_flag=args.save_flag)
-
-    # print("showing the results...")
-    # modals = ['t1', 't1ce', 't2', 'flair']
-    # for modal in modals:
-    #     viewer = NiiViewer(nii_dir=os.path.join(outputs_path, 'P0'), outputs_dir=outputs_path, modal=modal)
-        # viewer.show_one_slice(slice_n=100)
-        # viewer.show_color_map(slice_n=100)
-        # viewer.show_all_slices()
-        # viewer.show_montage()
     
     print("😃😃well done")
 
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description="inference args")
-    # parser.add_argument("--model_name", type=str, default="unet3d_bn_res", help="model name")
-    parser.add_argument("--data_scale", type=str, default="small", help="loading data scale")
-    parser.add_argument("--data_len", type=int, default=10, help="train length")
-    parser.add_argument("--test_csv", type=str, default="./brats21_local/test.csv", help="test csv file path")
-    parser.add_argument("--ckpt_path", type=str, default="/root/workspace/Helium-327-SegBrats/results/2024-10-12/2024-10-12_20-27-38/checkpoints/UNet3D_BN_best_ckpt@epoch107_diceloss0.1372_dice0.8838_16.pth", help='inference model path')
-    parser.add_argument("--save_flag", type=bool, default=True, help="save flag")
-    parser.add_argument("--outputs_root", type=str, default='./outputs', help="output path")
-    parser.add_argument("--model", type=str, default="unet3d_bn", help="model name")
+
+    parser.add_argument("--model", type=str,
+                        default="unet3d_bn", 
+                        help="model name")
+    parser.add_argument("--data_scale", type=str, 
+                        default="small", 
+                        help="loading data scale")
+    parser.add_argument("--data_len", type=int, 
+                        default=10, 
+                        help="train length")
+    parser.add_argument("--test_csv", type=str, 
+                        default="./brats21_local/test.csv", 
+                        help="test csv file path")
+    parser.add_argument("--ckpt_path", type=str, 
+                        default="/root/workspace/Helium-327-SegBrats/results/2024-10-12/2024-10-12_20-27-38/checkpoints/UNet3D_BN_best_ckpt@epoch107_diceloss0.1372_dice0.8838_16.pth", 
+                        help='inference model path')
+    parser.add_argument("--save_flag", type=bool, 
+                        default=True, 
+                        help="save flag")
+    parser.add_argument("--outputs_root", type=str, 
+                        default='./outputs', 
+                        help="output path")
     args = parser.parse_args()
 
     main(args)
