@@ -89,6 +89,8 @@ def main(args):
         model = Down_CAC_UNET3D(4, 4, [32, 64, 128, 256])
     elif args.model == 'res_unet3d':
         model = Res_UNET3D(4, 4, [32, 64, 128, 256])
+    elif args.model == 'rid_unet3d':
+        model = RIA_UNET3D(4, 4, [16, 32, 64, 128, 256])
     elif args.model == 'pspnet':
         model = PSPNET(nn.Conv3d, nn.BatchNorm3d, nn.ReLU, 4, in_channel=4, mid_channels=128, out_channels=128, num_classes=4, img_size=128)
     else:
@@ -280,11 +282,11 @@ if __name__ == "__main__":
                         default=4, 
                         help="num_workers")
     parser.add_argument("--bs", type=int, 
-                        default=2, 
+                        default=1, 
                         help="batch_size")
     # 模型相关的参数
     parser.add_argument("--model", type=str, 
-                        default="down_cac_unet3d", help="")
+                        default="rid_unet3d", help="")
     parser.add_argument("--input_channels", type=int, 
                         default=4, 
                         help="input channels")
