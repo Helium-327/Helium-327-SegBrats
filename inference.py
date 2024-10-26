@@ -216,6 +216,13 @@ def save_nii(pred_vimage, vimage, vmask, output_path, affine, i):
 def main(args):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     test_csv = args.test_csv
+    bs, nw = 0, 0
+    if args.data_scale == 'small':
+        bs = 1
+        nw = 4
+    else:
+        bs = 2
+        nw = 8
 
     # 初始化模型
     if args.model == 'unet3d':
@@ -228,6 +235,10 @@ def main(args):
         model = Down_CAC_UNET3D(4, 4, [32, 64, 128, 256])
     elif args.model == 'res_unet3d':
         model = Res_UNET3D(4, 4, [32, 64, 128, 256])
+    elif args.model == 'rid_unet3d':
+        model = RIA_UNET3D(4, 4, [16, 32, 64, 128, 256])
+    elif args.model == 'magic_unet3d':
+        model = Magic_UNET3D(in_channels=4, mid_channels=32, out_channels=4)
     elif args.model == 'pspnet':
         model = PSPNET(nn.Conv3d, nn.BatchNorm3d, nn.ReLU, 4, in_channel=4, mid_channels=128, out_channels=128, num_classes=4, img_size=128)
     else:
@@ -261,8 +272,8 @@ def main(args):
 
 
     test_loader = DataLoader(dataset=test_dataset, 
-                            batch_size=2, 
-                            num_workers=4, 
+                            batch_size=bs, 
+                            num_workers=nw, 
                             shuffle=False)
 
     os.makedirs(args.outputs_root, exist_ok=True)

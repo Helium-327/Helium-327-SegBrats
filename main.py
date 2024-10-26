@@ -382,7 +382,7 @@ if __name__ == "__main__":
                         help="result path")
     
     parser.add_argument("--commit", type=str, 
-                        default=None, 
+                        default='debug', 
                         help="training commit")
 
     args = parser.parse_args()

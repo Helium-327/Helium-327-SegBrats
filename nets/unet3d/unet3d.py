@@ -723,6 +723,67 @@ class RIA_UNET3D_v2(nn.Module):
         # out = self.crf
         return out
 
+# class Magic_UNET3D(nn.Module):
+#     def __init__(self, in_channels, mid_channels, out_channels):
+#         super().__init__()
+#         self.in_channels = in_channels
+#         self.mid_channels = mid_channels
+#         self.out_channels = out_channels
+
+#         self.conv = CBR_Block_3x3(in_channels, mid_channels)
+#         self.bn = nn.BatchNorm3d(mid_channels)
+#         self.relu = nn.ReLU()
+
+#         self.encoder1 = EncoderBottleneck(mid_channels, mid_channels*2)
+#         self.encoder2 = EncoderBottleneck(mid_channels*2, mid_channels*4)
+#         self.encoder3 = EncoderBottleneck(mid_channels*4, mid_channels*8)
+#         self.encoder4 = EncoderBottleneck(mid_channels*8, mid_channels*16)
+        
+#         self.bottom_layer = Inception_Block(mid_channels*16, mid_channels*8)
+
+#         self.decoder1 = DecoderBottleneck(mid_channels*16, mid_channels*4)
+#         self.decoder2 = DecoderBottleneck(mid_channels*8, mid_channels*2)
+#         self.decoder3 = DecoderBottleneck(mid_channels*4, mid_channels)
+#         self.FusionMagic = FusionMagic(mid_channels, mid_channels*4)
+#         self.decoder4 = DecoderBottleneck(mid_channels*2, mid_channels)
+
+#         self.final_conv = nn.Conv3d(mid_channels, out_channels, kernel_size=1)
+
+#         self.softmax = nn.Softmax(dim=1)
+
+#     def forward(self, x):
+#         x1 = self.relu(self.bn(self.conv(x))) # 32
+        
+#         # 编码器部分
+#         x2 = self.encoder1(x1) # 64
+#         x3 = self.encoder2(x2) # 128
+
+#         # FusionMagic
+#         out = self.FusionMagic([x1, x2, x3])
+#         y = out.expand_as(x3)
+#         out = y * x3  # 128
+
+#         x4 = self.encoder3(out) # 256
+
+#         out = self.encoder4(x4) # 512
+        
+#         # 特征增强
+#         out = self.bottom_layer(out)
+
+#         # 解码器部分
+#         out = self.decoder1(out, x4) # 128
+
+
+#         out = self.decoder2(out, x3) # 128
+#         out = self.decoder3(out, x2) # 64
+#         out = self.decoder4(out, x1) # 32
+
+#         out = self.final_conv(out)
+#         out = self.softmax(out)
+
+#         return out
+
+
 class Magic_UNET3D(nn.Module):
     def __init__(self, in_channels, mid_channels, out_channels):
         super().__init__()
@@ -737,14 +798,14 @@ class Magic_UNET3D(nn.Module):
         self.encoder1 = EncoderBottleneck(mid_channels, mid_channels*2)
         self.encoder2 = EncoderBottleneck(mid_channels*2, mid_channels*4)
         self.encoder3 = EncoderBottleneck(mid_channels*4, mid_channels*8)
-        self.FusionMagic = FusionMagic(mid_channels, mid_channels*4)
         self.encoder4 = EncoderBottleneck(mid_channels*8, mid_channels*16)
         
-        self.bottom_layer = Inception_Block(mid_channels*16, mid_channels*8)
+        self.bottom_layer = D_Inception_Block(mid_channels*16, mid_channels*8)
 
         self.decoder1 = DecoderBottleneck(mid_channels*16, mid_channels*4)
         self.decoder2 = DecoderBottleneck(mid_channels*8, mid_channels*2)
         self.decoder3 = DecoderBottleneck(mid_channels*4, mid_channels)
+        self.FusionMagic = FusionMagic(mid_channels, mid_channels)
         self.decoder4 = DecoderBottleneck(mid_channels*2, mid_channels)
 
         self.final_conv = nn.Conv3d(mid_channels, out_channels, kernel_size=1)
@@ -757,13 +818,7 @@ class Magic_UNET3D(nn.Module):
         # 编码器部分
         x2 = self.encoder1(x1) # 64
         x3 = self.encoder2(x2) # 128
-
-        # FusionMagic
-        out = self.FusionMagic([x1, x2, x3])
-        y = out.expand_as(x3)
-        out = y * x3  # 128
-
-        x4 = self.encoder3(out) # 256
+        x4 = self.encoder3(x3) # 256
 
         out = self.encoder4(x4) # 512
         
@@ -771,18 +826,21 @@ class Magic_UNET3D(nn.Module):
         out = self.bottom_layer(out)
 
         # 解码器部分
-        out = self.decoder1(out, x4) # 128
+        out1 = self.decoder1(out, x4) # 128
+        out2 = self.decoder2(out1, x3) # 64
+        out3 = self.decoder3(out2, x2) # 32
 
+        FusionMagic
+        FM_out = self.FusionMagic([out1, out2, out3])
+        y = FM_out.expand_as(out3)
+        out3 = y * out3  # 32
 
-        out = self.decoder2(out, x3) # 128
-        out = self.decoder3(out, x2) # 64
-        out = self.decoder4(out, x1) # 32
+        out4 = self.decoder4(out3, x1) # 16
+        out = self.final_conv(out4)
 
-        out = self.final_conv(out)
         out = self.softmax(out)
 
         return out
-
         
 if __name__ == '__main__':
     from Modules.UnetBlocks3D import *

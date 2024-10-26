@@ -12,7 +12,7 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 # from Attentions3D import *
-
+# from Modules.Attentions3D import *
 from nets.unet3d.Modules.Attentions3D import *
 
 class CBR_Block_3x3(nn.Module):
@@ -233,28 +233,28 @@ class FusionMagic(nn.Module):
 
         self.layer_norm5 = nn.LayerNorm([in_channels*7, 1, 1, 1])
 
-        self.Conv1 = nn.Conv3d(in_channels*7, out_channels, kernel_size=3, dilation=2, padding=2)
 
         self.MLP = nn.Sequential(
-            nn.Conv3d(in_channels=out_channels, out_channels=in_channels, kernel_size=1),
+            nn.Conv3d(in_channels=in_channels*7, out_channels=in_channels, kernel_size=1),
             nn.ReLU(inplace=True),
-            nn.Conv3d(in_channels=in_channels, out_channels=out_channels, kernel_size=1),
+            nn.Conv3d(in_channels=in_channels, out_channels=in_channels*7, kernel_size=1),
             nn.ReLU(inplace=True)
         )
+        self.Conv1 = nn.Conv3d(in_channels*7, out_channels, kernel_size=1)
+
         self.sigmoid = nn.Sigmoid()
         
     def forward(self, inputs:list[torch.tensor]):
         # 对后两层的输入进行平均池化操作，得到每个通道的平均值
-        x1 = self.avgpooloing(inputs[0])
+        x1 = self.avgpooloing(inputs[-1])
         # x1 = self.SE_layer1(x1)
         x1 = self.layer_norm1(x1)
 
-        x2 = self.avgpooloing(inputs[1])
+        x2 = self.avgpooloing(inputs[-2])
         x2 = self.layer_norm2(x2)
 
-        x3 = self.avgpooloing(inputs[2])
+        x3 = self.avgpooloing(inputs[0])
         x3 = self.layer_norm3(x3)
-
 
         out = torch.cat([x2, x3], dim=1)
         out = self.layer_norm4(out)
@@ -264,8 +264,8 @@ class FusionMagic(nn.Module):
 
         out = self.dropout(out)
 
-        out = self.Conv1(out)
         out = self.MLP(out)
+        out = self.Conv1(out)
         # out = self.SE_layer1(out)
 
         out = self.sigmoid(out)
@@ -274,6 +274,7 @@ class FusionMagic(nn.Module):
     
 if __name__ == '__main__':
     from Modules.Attentions3D import *
+    
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = FusionMagic(32, 128).to(device)
     inputs = [torch.randn(1, 32, 128, 128, 128).to(device), torch.randn(1, 64, 64, 64, 64).to(device), torch.randn(1, 128, 32, 32, 32).to(device)]
