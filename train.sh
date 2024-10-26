@@ -175,7 +175,7 @@ echo "即将开始集合训练"
 # fi
 
 # python inference.py --model down_cac_unet3d --ckpt_path "/root/workspace/Helium-327-SegBrats/results/2024-10-22/2024-10-22_11-19-43/checkpoints/best@e17_Down_CAC_UNET3D__diceloss0.2331_dice0.7989_2024-10-22_11-19-43_10.pth"
-python main.py --epochs 300 --data_scale full --model magic_unet3d --early_stop_patience 30 --nw 4 --bs 1 --cosine_T_max 300 --commit 'fully trainging on fixbug magic_unet3d' 
+python main.py --epochs 300 --data_scale debug --model magic_unet3d --early_stop_patience 30 --nw 4 --bs 1 --cosine_T_max 300 --commit 'fully trainging on fixbug magic_unet3d' 
 # python main.py --epochs 300 --data_scale full --model up_cac_unet3d --early_stop_patience 30 --nw 4 --bs 2 --cosine_T_max 300 --commit 'fully trainging on up_cac_unet3d' 
 # python main.py --epochs 300 --data_scale full --model down_cac_unet3d --early_stop_patience 30 --nw 4 --bs 2 --cosine_T_max 300 --commit 'fully trainging on down_cac_unet3d' 
 

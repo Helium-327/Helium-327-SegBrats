@@ -117,7 +117,7 @@ class D_Inception_Block(nn.Module):
         self.branch1 = nn.Sequential(
             nn.Conv3d(in_channels, out_channels, kernel_size=1),
             nn.BatchNorm3d(out_channels),
-            # nn.ReLU(inplace=True),
+            nn.ReLU(inplace=True),
         )
         self.branch2 = nn.Sequential(
             nn.Conv3d(in_channels, out_channels, kernel_size=1),
@@ -128,23 +128,26 @@ class D_Inception_Block(nn.Module):
         self.branch3 = nn.Sequential(
             nn.Conv3d(in_channels, out_channels, kernel_size=1),
             nn.BatchNorm3d(out_channels),
-            # nn.ReLU(inplace=True),
+            nn.ReLU(inplace=True),
             nn.Conv3d(out_channels, out_channels, kernel_size=3, dilation=1, padding=1), # 膨胀卷积，膨胀率为2
             nn.BatchNorm3d(out_channels),
             nn.Conv3d(out_channels, out_channels, kernel_size=3, dilation=2, padding=2), # 膨胀卷积，膨胀率为2
             nn.BatchNorm3d(out_channels),
             nn.Conv3d(out_channels, out_channels, kernel_size=3, dilation=3, padding=3), # 膨胀卷积，膨胀率为2
             nn.BatchNorm3d(out_channels),
+            nn.ReLU(inplace=True),
         )
         self.branch4 = nn.Sequential(
-            nn.MaxPool3d(kernel_size=3, stride=1, padding=1),
             nn.Conv3d(in_channels, out_channels, kernel_size=1),
             nn.BatchNorm3d(out_channels),
+            nn.ReLU(inplace=True),
+            nn.MaxPool3d(kernel_size=3, stride=1, padding=1),
         )
         self.branch5 = nn.Sequential(
-            nn.AvgPool3d(kernel_size=3, stride=1, padding=1),
             nn.Conv3d(in_channels, out_channels, kernel_size=1),
             nn.BatchNorm3d(out_channels),
+            nn.ReLU(inplace=True),
+            nn.AvgPool3d(kernel_size=3, stride=1, padding=1),
         )
         self.out_conv = nn.Conv3d(out_channels * 5, out_channels, kernel_size=1)
 
@@ -221,6 +224,7 @@ class FusionMagic(nn.Module):
         super().__init__()
         # 分别对后两层的输入进行平均池化操作，得到每个通道的平均值
         self.avgpooloing = nn.AdaptiveAvgPool3d(1)
+        self.maxpooling = nn.AdaptiveMaxPool3d(1)
         self.dropout = nn.Dropout(p=dropout)
         self.layer_norm1 = nn.LayerNorm([in_channels, 1, 1, 1])
         self.layer_norm2 = nn.LayerNorm([in_channels*2, 1, 1, 1])
@@ -247,22 +251,28 @@ class FusionMagic(nn.Module):
     def forward(self, inputs:list[torch.tensor]):
         # 对后两层的输入进行平均池化操作，得到每个通道的平均值
         x1 = self.avgpooloing(inputs[-1])
-        # x1 = self.SE_layer1(x1)
+        x1 = self.maxpooling(x1)
         x1 = self.layer_norm1(x1)
 
         x2 = self.avgpooloing(inputs[-2])
+        x2 = self.maxpooling(x2)
         x2 = self.layer_norm2(x2)
 
         x3 = self.avgpooloing(inputs[0])
+        x3 = self.maxpooling(x3)
         x3 = self.layer_norm3(x3)
 
         out = torch.cat([x2, x3], dim=1)
+        out = self.avgpooloing(out)
+        out = self.maxpooling(out)
         out = self.layer_norm4(out)
 
         out = torch.cat([x1, out], dim=1)
+        out = self.avgpooloing(out)
+        out = self.maxpooling(out)
         out = self.layer_norm5(out)
 
-        out = self.dropout(out)
+        # out = self.dropout(out)
 
         out = self.MLP(out)
         out = self.Conv1(out)

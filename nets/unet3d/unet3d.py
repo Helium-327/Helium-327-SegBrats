@@ -806,6 +806,11 @@ class Magic_UNET3D(nn.Module):
         self.decoder2 = DecoderBottleneck(mid_channels*8, mid_channels*2)
         self.decoder3 = DecoderBottleneck(mid_channels*4, mid_channels)
         self.FusionMagic = FusionMagic(mid_channels, mid_channels)
+        self.fusion_conv = nn.Sequential(
+            nn.Conv3d(mid_channels, mid_channels, kernel_size=3, padding=1),
+            nn.BatchNorm3d(mid_channels),
+            nn.ReLU()
+        )
         self.decoder4 = DecoderBottleneck(mid_channels*2, mid_channels)
 
         self.final_conv = nn.Conv3d(mid_channels, out_channels, kernel_size=1)
@@ -830,10 +835,11 @@ class Magic_UNET3D(nn.Module):
         out2 = self.decoder2(out1, x3) # 64
         out3 = self.decoder3(out2, x2) # 32
 
-        FusionMagic
+        # FusionMagic
         FM_out = self.FusionMagic([out1, out2, out3])
         y = FM_out.expand_as(out3)
         out3 = y * out3  # 32
+        out3 = self.fusion_conv(out3)
 
         out4 = self.decoder4(out3, x1) # 16
         out = self.final_conv(out4)
