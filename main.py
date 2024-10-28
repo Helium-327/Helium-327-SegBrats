@@ -91,8 +91,10 @@ def main(args):
         model = Res_UNET3D(4, 4, [32, 64, 128, 256])
     elif args.model == 'rid_unet3d':
         model = RIA_UNET3D(4, 4, [16, 32, 64, 128, 256])
-    elif args.model == 'magic_unet3d':
-        model = Magic_UNET3D(in_channels=4, mid_channels=32, out_channels=4)
+    elif args.model == 'd_se2_unet3d':
+        model = Down_SE2_UNET3D(in_channels=4, mid_channels=32, out_channels=4)
+    elif args.model == 'unet3d_v2':
+        model = UNET3D_v2(in_channels=4, mid_channels=32, out_channels=4)
     elif args.model == 'pspnet':
         model = PSPNET(nn.Conv3d, nn.BatchNorm3d, nn.ReLU, 4, in_channel=4, mid_channels=128, out_channels=128, num_classes=4, img_size=128)
     else:
@@ -333,10 +335,10 @@ if __name__ == "__main__":
                         default='CosineAnnealingLR',
                         help="schedulers:['ReduceLROnPlateau', 'CosineAnnealingLR']")
     parser.add_argument("--cosine_min_lr", type=float, 
-                        default=1e-6, 
+                        default=1e-4, 
                         help="CosineAnnealingLR min lr")
     parser.add_argument("--cosine_T_max", type=int, 
-                        default=300, 
+                        default=200, 
                         help="CosineAnnealingLR T max")
 
     parser.add_argument("--reduce_patience", type=int, 

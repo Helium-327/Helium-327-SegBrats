@@ -147,10 +147,6 @@ def slide_window_pred(model, test_data, device, window_size, stride_ratio=1):
             for d in range(0, D +1, stride_size[0]):  # D 维度
                 for h in range(0, H +1, stride_size[1]):  # H 维度
                     for w in range(0, W +1, stride_size[2]):  # W 维度
-                        # 计算当前窗口的结束索引，并确保它不会超出边界
-                        # end_d = min(D, d + window_size[0])
-                        # end_h = min(H, h + window_size[1])
-                        # end_w = min(W, w + window_size[2])
                         if d + window_size[0] > D or h + window_size[1] > H or w + window_size[2] > W:
                             d = D - window_size[0]
                             h = H - window_size[1]
@@ -288,7 +284,7 @@ def main(args):
     dir_str = date_str + '_' +  os.path.splitext(os.path.basename(args.ckpt_path))[0]
     outputs_path = os.path.join(args.outputs_root, dir_str)
 
-    inference(test_loader, model, Metricer, outputs_path, device, affine, save_flag=args.save_flag, stride_ratio=0.8)
+    inference(test_loader, model, Metricer, outputs_path, device, affine, save_flag=args.save_flag, stride_ratio=0.5)
     
     print("😃😃well done")
 

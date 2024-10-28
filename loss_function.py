@@ -99,8 +99,8 @@ class DiceLoss:
         dice = (2. * intersection + self.smooth) / (union + self.smooth)
         loss = 1. - dice.mean()  
         
-        mean_loss = (area_et_loss + area_tc_loss +  area_wt_loss) / 3
-        return mean_loss, area_et_loss, area_tc_loss, area_wt_loss
+        # mean_loss = (area_et_loss + area_tc_loss +  area_wt_loss) / 3
+        return loss, area_et_loss, area_tc_loss, area_wt_loss
 
     def get_every_subAreas_loss(self, y_pred, y_mask):
         loss_dict = {}

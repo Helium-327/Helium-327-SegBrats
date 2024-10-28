@@ -190,7 +190,7 @@ class EncoderBottleneck(nn.Module):
     
 
 class DecoderBottleneck(nn.Module):
-    def __init__(self, in_channels, out_channels, scale_factor=2):
+    def __init__(self, in_channels, out_channels, scale_factor=2, att=False):
         super().__init__()
         self.upsample = nn.Upsample(scale_factor=scale_factor, mode='nearest')
         self.residual = nn.Sequential(
@@ -219,6 +219,7 @@ class DecoderBottleneck(nn.Module):
         out = self.relu(residual_out + shortcut_out)
         return out
     
+    
 class FusionMagic(nn.Module):
     def __init__(self, in_channels, out_channels, dropout=0.2): # 32, 128
         super().__init__()
@@ -237,7 +238,6 @@ class FusionMagic(nn.Module):
 
         self.layer_norm5 = nn.LayerNorm([in_channels*7, 1, 1, 1])
 
-
         self.MLP = nn.Sequential(
             nn.Conv3d(in_channels=in_channels*7, out_channels=in_channels, kernel_size=1),
             nn.ReLU(inplace=True),
@@ -252,6 +252,7 @@ class FusionMagic(nn.Module):
         # 对后两层的输入进行平均池化操作，得到每个通道的平均值
         x1 = self.avgpooloing(inputs[-1])
         x1 = self.maxpooling(x1)
+        
         x1 = self.layer_norm1(x1)
 
         x2 = self.avgpooloing(inputs[-2])

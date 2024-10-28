@@ -723,7 +723,7 @@ class RIA_UNET3D_v2(nn.Module):
         # out = self.crf
         return out
 
-# class Magic_UNET3D(nn.Module):
+# class Magic_UNET3D_v1(nn.Module):
 #     def __init__(self, in_channels, mid_channels, out_channels):
 #         super().__init__()
 #         self.in_channels = in_channels
@@ -783,8 +783,72 @@ class RIA_UNET3D_v2(nn.Module):
 
 #         return out
 
+class UNET3D_v2(nn.Module):
+    """使用先上采样后拼接的方式实现UNet3D网络"""
+    def __init__(self, in_channels, mid_channels, out_channels):
+        super().__init__()
+        self.in_channels = in_channels
+        self.mid_channels = mid_channels
+        self.out_channels = out_channels
 
-class Magic_UNET3D(nn.Module):
+        self.conv = CBR_Block_3x3(in_channels, mid_channels)
+        self.bn = nn.BatchNorm3d(mid_channels)
+        self.relu = nn.ReLU()
+
+        self.encoder1 = EncoderBottleneck(mid_channels, mid_channels*2)
+        self.encoder2 = EncoderBottleneck(mid_channels*2, mid_channels*4)
+        self.encoder3 = EncoderBottleneck(mid_channels*4, mid_channels*8)
+        self.encoder4 = EncoderBottleneck(mid_channels*8, mid_channels*16)
+        
+        self.bottom_layer = D_Inception_Block(mid_channels*16, mid_channels*8)
+
+        self.decoder1 = DecoderBottleneck(mid_channels*16, mid_channels*4)
+        self.decoder2 = DecoderBottleneck(mid_channels*8, mid_channels*2)
+        self.decoder3 = DecoderBottleneck(mid_channels*4, mid_channels)
+        self.FusionMagic = FusionMagic(mid_channels, mid_channels)
+        self.fusion_conv = nn.Sequential(
+            nn.Conv3d(mid_channels, mid_channels, kernel_size=3, padding=1),
+            nn.BatchNorm3d(mid_channels),
+            nn.ReLU()
+        )
+        self.decoder4 = DecoderBottleneck(mid_channels*2, mid_channels)
+
+        self.final_conv = nn.Conv3d(mid_channels, out_channels, kernel_size=1)
+
+        self.softmax = nn.Softmax(dim=1)
+
+    def forward(self, x):
+        x1 = self.relu(self.bn(self.conv(x))) # 32
+        
+        # 编码器部分
+        x2 = self.encoder1(x1) # 64
+        x3 = self.encoder2(x2) # 128
+        x4 = self.encoder3(x3) # 256
+
+        out = self.encoder4(x4) # 512
+        
+        # 特征增强
+        out = self.bottom_layer(out)
+
+        # 解码器部分
+        out1 = self.decoder1(out, x4) # 128
+        out2 = self.decoder2(out1, x3) # 64
+        out3 = self.decoder3(out2, x2) # 32
+
+        # # FusionMagic
+        # FM_out = self.FusionMagic([out1, out2, out3])
+        # y = FM_out.expand_as(out3)
+        # out3 = y * out3  # 32
+        # out3 = self.fusion_conv(out3)
+
+        out4 = self.decoder4(out3, x1) # 16
+        out = self.final_conv(out4)
+        out = self.softmax(out)
+
+        return out
+
+class Down_SE2_UNET3D(nn.Module):
+    """在UNET3D的解码器部分增加了级联的SE模块"""
     def __init__(self, in_channels, mid_channels, out_channels):
         super().__init__()
         self.in_channels = in_channels
@@ -839,7 +903,7 @@ class Magic_UNET3D(nn.Module):
         FM_out = self.FusionMagic([out1, out2, out3])
         y = FM_out.expand_as(out3)
         out3 = y * out3  # 32
-        out3 = self.fusion_conv(out3)
+        # out3 = self.fusion_conv(out3)
 
         out4 = self.decoder4(out3, x1) # 16
         out = self.final_conv(out4)
@@ -855,7 +919,7 @@ if __name__ == '__main__':
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     # model = RIA_UNET3D_v2(in_channels=4, out_channels=4, features=[16, 32, 64, 128, 256])
-    model = Magic_UNET3D(in_channels=4, mid_channels=32, out_channels=4)
+    model = Down_SE2_UNET3D(in_channels=4, mid_channels=32, out_channels=4)
     # model = Inception_Block(256, 128)
     # input = torch.rand((1, 256, 64, 64, 64)).to(device)
     input = torch.rand((1, 4, 128, 128, 128)).to(device)
