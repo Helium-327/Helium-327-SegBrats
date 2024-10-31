@@ -175,18 +175,34 @@ echo "即将开始集合训练"
 # fi
 
 # python inference.py --model down_cac_unet3d --ckpt_path "/root/workspace/Helium-327-SegBrats/results/2024-10-22/2024-10-22_11-19-43/checkpoints/best@e17_Down_CAC_UNET3D__diceloss0.2331_dice0.7989_2024-10-22_11-19-43_10.pth"
-python main.py --epochs 200 --data_scale small --model d_se2_unet3d --early_stop_patience 30 --nw 8 --bs 2 --cosine_T_max 300 --commit 'fully trainging on d_se2_unet3d' 
-python main.py --epochs 200 --data_scale full --model unet3d_v2 --early_stop_patience 30 --nw 8 --bs 2 --cosine_T_max 300 --commit 'fully trainging on unet_v2'
+# python main.py --epochs 200 --data_scale small --model d_se2_unet3d --early_stop_patience 30 --nw 8 --bs 2 --cosine_T_max 300 --commit 'fully trainging on d_se2_unet3d' 
+# python main.py --epochs 200 --data_scale full --model unet3d_v2 --early_stop_patience 30 --nw 8 --bs 2 --cosine_T_max 300 --commit 'fully trainging on unet_v2'
+
+# # 检查上一个命令的退出状态
+
+# if [ $? -eq 0 ]; then
+#     echo "训练完成" 
+#     /usr/bin/shutdownn
+# else
+#     echo "debug出现错误" 
+#     error_time=$(date "+%Y-%m-%d %H:%M:%S")
+#     echo "错误时间: $error_time\n" >> debug_error.txt
+#     cat error.log >> debug_error.txt
+#     /usr/bin/shutdown
+# fi
+
+# python main.py --epochs 200 --data_scale small --model d_se2_unet3d --early_stop_patience 30 --nw 8 --bs 2 --cosine_T_max 300 --commit 'fully trainging on d_se2_unet3d' 
+python main.py --epochs 200 --data_scale small --model fusion_unet3d --fusion True --early_stop_patience 30 --nw 4 --bs 2 --cosine_T_max 300 --commit 'fully trainging on unet_v2'
 
 # 检查上一个命令的退出状态
 
 if [ $? -eq 0 ]; then
-    echo "debug完成。 可以正常开始训练" 
-    /bin/etc/shutdown
+    echo "训练完成" 
+    /usr/bin/shutdownn
 else
     echo "debug出现错误" 
     error_time=$(date "+%Y-%m-%d %H:%M:%S")
     echo "错误时间: $error_time\n" >> debug_error.txt
     cat error.log >> debug_error.txt
-    /bin/etc/shutdown
+    /usr/bin/shutdown
 fi

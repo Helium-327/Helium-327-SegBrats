@@ -19,6 +19,7 @@ from torch.amp import GradScaler
 # from nets.unet3d.unet3d_CBAM import unet3d_CBAM
 
 from nets.unet3d.unet3d import *
+from nets.unet3d.fusion_unet import *
 from nets.unet3d.pspnet import PSPNET
 from nets.model_weights_init import init_weights_light
 from loss_function import DiceLoss, CELoss, FocalLoss
@@ -93,8 +94,18 @@ def main(args):
         model = RIA_UNET3D(4, 4, [16, 32, 64, 128, 256])
     elif args.model == 'd_se2_unet3d':
         model = Down_SE2_UNET3D(in_channels=4, mid_channels=32, out_channels=4)
+    elif args.model == 'd_se2_unet3d_v2':
+        model = Down_SE2_UNET3D_v2(in_channels=4, mid_channels=32, out_channels=4)
     elif args.model == 'unet3d_v2':
         model = UNET3D_v2(in_channels=4, mid_channels=32, out_channels=4)
+    elif args.model == 'unet3d_v3':
+        model = UNET3D_v3(in_channels=4, mid_channels=32, out_channels=4)
+    elif args.model == 'fusion_unet3d':
+        if args.fusion is None:
+            delattr(args, 'fusion')
+        else:
+            model = FM_UNET3D(in_channels=4, out_channels=4, fusion=args.fusion, ec_dilation_flags=[False, False, False, False], dc_dilation_flags=[False, False, False, False])
+
     elif args.model == 'pspnet':
         model = PSPNET(nn.Conv3d, nn.BatchNorm3d, nn.ReLU, 4, in_channel=4, mid_channels=128, out_channels=128, num_classes=4, img_size=128)
     else:
@@ -120,6 +131,10 @@ def main(args):
         cutoff_tb_data(resume_tb_path, start_epoch)
         print(f"Refix resume tb data step {resume_tb_path} up to step {start_epoch}")
     
+    # 打印网络结构
+
+    summary(model, input_size=(1, 4, 128, 128, 128))
+
     """------------------------------------- 获取数据列表csv --------------------------------------------"""
     train_csv = os.path.join(args.data_root, "train.csv")
     val_csv = os.path.join(args.data_root, "val.csv")
@@ -142,16 +157,16 @@ def main(args):
     """------------------------------------- 载入数据集 --------------------------------------------"""
     TransMethods_train = data_transform(transform=Compose([RandomCrop3D(size=args.trainCropSize),    # 随机裁剪
                                                         tioRandomFlip3d(),                 # 随机翻转
-                                                        Normalize(mean=(0.114, 0.090, 0.170, 0.096), std=(0.199, 0.151, 0.282, 0.174)),   # 标准化
+                                                        # Normalize(mean=(0.114, 0.090, 0.170, 0.096), std=(0.199, 0.151, 0.282, 0.174)),   # 标准化
                                                         # tioRandomElasticDeformation3d(),
                                                         # tioRandomAffine(),          # 随机旋转
-                                                        # tioZNormalization(),               # 归一化
+                                                        tioZNormalization(),               # 归一化
                                       ])) #! 不加噪声 不加噪声 不加噪声
     
     TransMethods_val = data_transform(transform=Compose([RandomCrop3D(size=args.valCropSize),    # 随机裁剪
                                                          tioRandomFlip3d(),   
-                                                         Normalize(mean=(0.114, 0.090, 0.170, 0.096), std=(0.199, 0.151, 0.282, 0.174)),   # 标准化
-                                                        #  tioZNormalization(),               # 归一化
+                                                        #  Normalize(mean=(0.114, 0.090, 0.170, 0.096), std=(0.199, 0.151, 0.282, 0.174)),   # 标准化
+                                                         tioZNormalization(),               # 归一化
                                       ]))
     
     assert args.data_scale in ['debug', 'small', 'full'], "data_scale must be 'debug', 'small' or 'full'!"
@@ -288,9 +303,13 @@ if __name__ == "__main__":
     parser.add_argument("--bs", type=int, 
                         default=1, 
                         help="batch_size")
+    
     # 模型相关的参数
     parser.add_argument("--model", type=str, 
-                        default="magic_unet3d", help="")
+                        default="fusion_unet3d", help="")
+    parser.add_argument("--fusion", type=str, 
+                        default=None, 
+                        help="fusion method")
     parser.add_argument("--input_channels", type=int, 
                         default=4, 
                         help="input channels")
@@ -306,6 +325,7 @@ if __name__ == "__main__":
     parser.add_argument("--resume", type=str, 
                         default=None, 
                         help="resume training from checkpoint")
+    
     # 训练参数
     parser.add_argument("--loss", type=str, 
                         default="DiceLoss", 
@@ -330,6 +350,7 @@ if __name__ == "__main__":
     parser.add_argument("--wd", type=float, 
                         default=1e-5, 
                         help="weight decay")
+    
     # 学习率调度器
     parser.add_argument("--scheduler", type=str, 
                         default='CosineAnnealingLR',
@@ -365,7 +386,7 @@ if __name__ == "__main__":
                         default="./brats21_local", 
                         help="data root")
     parser.add_argument("--data_scale", type=str, 
-                        default="debug", 
+                        default="small", 
                         help="loading data scale")
     parser.add_argument("--trainSet_len", type=int, 
                         default=100, 
@@ -379,6 +400,7 @@ if __name__ == "__main__":
     parser.add_argument("--valCropSize", type=lambda x: tuple(map(int, x.split(','))), 
                         default=(128, 128, 128),
                         help="crop size")
+    
     parser.add_argument("--results_root", type=str, 
                         default="./results", 
                         help="result path")
