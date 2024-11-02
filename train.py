@@ -19,7 +19,7 @@ from train_and_val import train_one_epoch, val_one_epoch
 from utils.log_writer import custom_logger
 from utils.ckpt_save_load import save_checkpoint, load_checkpoint
 
-
+from torchinfo import summary
 from utils.get_commits import *
 from utils.run_shell_command import *
 
@@ -68,6 +68,7 @@ def train(model, Metrics, train_loader, val_loader, scaler, optimizer, scheduler
     optimizer_name = optimizer.__class__.__name__
     scheduler_name = scheduler.__class__.__name__
     loss_func_name = loss_function.__class__.__name__
+
     if resume_tb_path:
         tb_dir = resume_tb_path
     else:
@@ -262,10 +263,13 @@ def train(model, Metrics, train_loader, val_loader, scaler, optimizer, scheduler
                     save_checkpoint(model, optimizer, scaler, best_epoch, best_val_loss, best_ckpt_path)
             else:
                 # 早停策略，如果连续patience个epoch没有改进，则停止训练
-                early_stopping_counter += 1
-                if early_stopping_counter >= early_stopping_patience:
-                    print(f"🎃 Early stopping at epoch {epoch} due to no improvement in validation loss.")
-                    break
+                if early_stopping_counter == 0 :
+                    continue
+                else:
+                    early_stopping_counter += 1
+                    if early_stopping_counter >= early_stopping_patience:
+                        print(f"🎃 Early stopping at epoch {epoch} due to no improvement in validation loss.")
+                        break
                 
     print(f"😃😃😃Train finished. Best val loss: 👉{best_val_loss:.4f} at epoch {best_epoch}")
     # 训练完成后关闭 SummaryWriter

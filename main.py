@@ -17,10 +17,10 @@ from torch.amp import GradScaler
 # from nets.unet3d.uent3d_dilation import UNet3D_dilation, UNet3D_ResDilation
 # from nets.unet3d.temp.uent3d_ResSE import UNet3D_ResSE
 # from nets.unet3d.unet3d_CBAM import unet3d_CBAM
+# from nets.pasnet.pspnet import PSPNET
 
 from nets.unet3d.unet3d import *
 from nets.unet3d.fusion_unet import *
-from nets.unet3d.pspnet import PSPNET
 from nets.model_weights_init import init_weights_light
 from loss_function import DiceLoss, CELoss, FocalLoss
 from utils.get_commits import *
@@ -34,6 +34,7 @@ from metrics import EvaluationMetrics
 os.environ["CUDA_LAUNCH_BLOCKING"] = '1'
 torch.backends.cudnn.benchmark = True
 torch.backends.cudnn.deterministic = True
+torch.autograd.set_detect_anomaly(True)
 
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 RANDOM_SEED = 42
@@ -82,38 +83,37 @@ def main(args):
     """------------------------------------- 模型实例化、初始化 --------------------------------------------"""
     if args.model == 'unet3d':
         model = UNET3D(4, 4, [32, 64, 128, 256])
-    elif args.model == 'f_cac_unet3d':
-        model = F_CAC_UNET3D(4, 4, [32, 64, 128, 256])
-    elif args.model == 'up_cac_unet3d':
-        model = Up_CAC_UNET3D(4, 4, [32, 64, 128, 256])
-    elif args.model == 'down_cac_unet3d':
-        model = Down_CAC_UNET3D(4, 4, [32, 64, 128, 256])
-    elif args.model == 'res_unet3d':
-        model = Res_UNET3D(4, 4, [32, 64, 128, 256])
-    elif args.model == 'rid_unet3d':
-        model = RIA_UNET3D(4, 4, [16, 32, 64, 128, 256])
-    elif args.model == 'd_se2_unet3d':
-        model = Down_SE2_UNET3D(in_channels=4, mid_channels=32, out_channels=4)
-    elif args.model == 'd_se2_unet3d_v2':
-        model = Down_SE2_UNET3D_v2(in_channels=4, mid_channels=32, out_channels=4)
-    elif args.model == 'unet3d_v2':
-        model = UNET3D_v2(in_channels=4, mid_channels=32, out_channels=4)
-    elif args.model == 'unet3d_v3':
-        model = UNET3D_v3(in_channels=4, mid_channels=32, out_channels=4)
-    elif args.model == 'fusion_unet3d':
-        if args.fusion is None:
-            delattr(args, 'fusion')
-        else:
-            model = FM_UNET3D(in_channels=4, out_channels=4, fusion=args.fusion, ec_dilation_flags=[False, False, False, False], dc_dilation_flags=[False, False, False, False])
-
-    elif args.model == 'pspnet':
-        model = PSPNET(nn.Conv3d, nn.BatchNorm3d, nn.ReLU, 4, in_channel=4, mid_channels=128, out_channels=128, num_classes=4, img_size=128)
+    # elif args.model == 'f_cac_unet3d':
+    #     model = F_CAC_UNET3D(4, 4, [32, 64, 128, 256])
+    # elif args.model == 'up_cac_unet3d':
+    #     model = Up_CAC_UNET3D(4, 4, [32, 64, 128, 256])
+    # elif args.model == 'down_cac_unet3d':
+    #     model = Down_CAC_UNET3D(4, 4, [32, 64, 128, 256])
+    # elif args.model == 'res_unet3d':
+    #     model = Res_UNET3D(4, 4, [32, 64, 128, 256])
+    # elif args.model == 'rid_unet3d':
+    #     model = RIA_UNET3D(4, 4, [16, 32, 64, 128, 256])
+    # elif args.model == 'd_se2_unet3d':
+    #     model = Down_SE2_UNET3D(in_channels=4, mid_channels=32, out_channels=4)
+    # elif args.model == 'd_se2_unet3d_v2':
+    #     model = Down_SE2_UNET3D_v2(in_channels=4, mid_channels=32, out_channels=4)
+    # elif args.model == 'unet3d_v2':
+    #     model = UNET3D_v2(in_channels=4, mid_channels=32, out_channels=4)
+    # elif args.model == 'unet3d_v3':
+    #     model = UNET3D_v3(in_channels=4, mid_channels=32, out_channels=4)
+    elif args.model == 'fm_unet3d_default':
+        model = FM_UNET3D(in_channels=4, out_channels=4, ec_dilation_flags=[False, False, False, False], dc_dilation_flags=[False, False, False, False])
+    elif args.model == 'fm_unet3d_res':
+        model = FM_UNET3D(in_channels=4, out_channels=4, ec_dilation_flags=[False, False, False, False], dc_dilation_flags=[False, False, False, False], residuals_flag=True)
+    elif args.model == 'fm_unet3d_dilation':
+        model = FM_UNET3D(in_channels=4, out_channels=4, ec_dilation_flags=[True, False, False, False], dc_dilation_flags=[True, False, False, False])
+    elif args.model == 'fm_unet3d_dilation_fusion':
+        model = FM_UNET3D(in_channels=4, out_channels=4, fusion=args.fusion_flag, ec_dilation_flags=[True, False, False, False], dc_dilation_flags=[True, False, False, False])
     else:
         raise ValueError(f"Invalid model name: {args.model}")
     
     init_weights_light(model)
     model.to(DEVICE)
-
     # 计算模型参数量
     total_params = sum(p.numel() for p in model.parameters())
     total_params = f'{total_params/1024**2:.2f} M'
@@ -296,7 +296,7 @@ if __name__ == "__main__":
 
     # 训练基本设置
     parser.add_argument("--epochs", type=int, 
-                        default=200, help="num_epochs")
+                        default=10, help="num_epochs")
     parser.add_argument("--nw", type=int, 
                         default=4, 
                         help="num_workers")
@@ -306,9 +306,9 @@ if __name__ == "__main__":
     
     # 模型相关的参数
     parser.add_argument("--model", type=str, 
-                        default="fusion_unet3d", help="")
-    parser.add_argument("--fusion", type=str, 
-                        default=None, 
+                        default="fm_unet3d", help="")
+    parser.add_argument("--fusion_flag", type=str, 
+                        default=True, 
                         help="fusion method")
     parser.add_argument("--input_channels", type=int, 
                         default=4, 
@@ -320,7 +320,7 @@ if __name__ == "__main__":
                         default=None, 
                         required=False, help="total parameters")
     parser.add_argument("--early_stop_patience", type=int, 
-                        default=30, 
+                        default=0, 
                         help="early stop patience")
     parser.add_argument("--resume", type=str, 
                         default=None, 
@@ -386,7 +386,7 @@ if __name__ == "__main__":
                         default="./brats21_local", 
                         help="data root")
     parser.add_argument("--data_scale", type=str, 
-                        default="small", 
+                        default="debug", 
                         help="loading data scale")
     parser.add_argument("--trainSet_len", type=int, 
                         default=100, 

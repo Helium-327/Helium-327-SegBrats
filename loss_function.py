@@ -94,13 +94,13 @@ class DiceLoss:
         y_mask = F.one_hot(y_mask, num_classes=self.num_classes).permute(0, 4, 1, 2, 3).float() # y_mask ==> [batch, 4, 144, 128, 128]
         area_et_loss, area_tc_loss, area_wt_loss = self.get_every_subAreas_loss(y_pred, y_mask)
 
-        intersection = (y_pred * y_mask).sum(dim=(-3, -2, -1))
-        union = y_pred.sum(dim=(-3, -2, -1)) + y_mask.sum(dim=(-3, -2, -1))
-        dice = (2. * intersection + self.smooth) / (union + self.smooth)
-        loss = 1. - dice.mean()  
+        # intersection = (y_pred * y_mask).sum(dim=(-3, -2, -1))
+        # union = y_pred.sum(dim=(-3, -2, -1)) + y_mask.sum(dim=(-3, -2, -1))
+        # dice = (2. * intersection + self.smooth) / (union + self.smooth)
+        # loss = 1. - dice.mean()  
         
-        # mean_loss = (area_et_loss + area_tc_loss +  area_wt_loss) / 3
-        return loss, area_et_loss, area_tc_loss, area_wt_loss
+        mean_loss = (area_et_loss + area_tc_loss +  area_wt_loss) / 3
+        return mean_loss, area_et_loss, area_tc_loss, area_wt_loss
 
     def get_every_subAreas_loss(self, y_pred, y_mask):
         loss_dict = {}

@@ -13,8 +13,6 @@ from torchsummary import summary
 # from nets.unet3d.ref.CBR_Blocks import *
 # from nets.unet3d.ref.CLR_Block import *
 
-
-
 class Up_Block(nn.Module):
     def __init__(self, in_channels:int, out_channels:int, kernel_size, stride, padding):
         super(Up_Block, self).__init__()
@@ -28,6 +26,7 @@ class Up_Block(nn.Module):
     def forward(self, x):
         out = self.up(x)
         return out
+
 
 
 class DoubleConv3x3(nn.Module):
@@ -87,6 +86,8 @@ class DoubleConvDilation(DoubleConv3x3):
         self.conv3x3[3].dilation = 2
         self.conv3x3[3].padding = 2
     
+
+
 
 
 class Conv5x5(nn.Module):

@@ -192,9 +192,14 @@ echo "即将开始集合训练"
 # fi
 
 # python main.py --epochs 200 --data_scale small --model d_se2_unet3d --early_stop_patience 30 --nw 8 --bs 2 --cosine_T_max 300 --commit 'fully trainging on d_se2_unet3d' 
-python main.py --epochs 200 --data_scale small --model fusion_unet3d --fusion True --early_stop_patience 30 --nw 4 --bs 2 --cosine_T_max 300 --commit 'fully trainging on unet_v2'
-
+# python main.py --epochs 200 --data_scale debug --model fm_unet3d  --early_stop_patience 0 --nw 4 --bs 2 --cosine_T_max 300 --commit 'fully trainging on fm_unet3d, no fusion'
+# python main.py --epochs 200 --data_scale debug --model fm_unet3d_fusion --fusion True --early_stop_patience 0 --nw 4 --bs 2 --cosine_T_max 300 --commit 'fully trainging on on fm_unet3d and fusion'
 # 检查上一个命令的退出状态
+
+python main.py --epochs 10 --data_scale small --model fm_unet3d_default  --early_stop_patience 0 --nw 4 --bs 2 --cosine_T_max 300 --commit 'small trainging on fm_unet3d_default'
+python main.py --epochs 10 --data_scale small --model fm_unet3d_res  --early_stop_patience 0 --nw 4 --bs 2 --cosine_T_max 300 --commit 'small trainging on fm_unet3d_res'
+python main.py --epochs 10 --data_scale small --model fm_unet3d_dilation  --early_stop_patience 0 --nw 4 --bs 1 --cosine_T_max 300 --commit 'small trainging on fm_unet3d_dilation'
+python main.py --epochs 10 --data_scale small --model fm_unet3d_dilation_fusion  --early_stop_patience 0 --nw 4 --bs 1 --cosine_T_max 300 --commit 'small trainging on fm_unet3d_dilation_fusion'
 
 if [ $? -eq 0 ]; then
     echo "训练完成" 

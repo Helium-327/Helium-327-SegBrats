@@ -31,8 +31,8 @@ from utils.ckpt_save_load import load_checkpoint
 # from utils.splitDataList import DataSpliter
 from utils.get_commits import *
 
-from nets.unet3d.unet3d import *
-from nets.unet3d.pspnet import PSPNET
+from nets.unet3d.fusion_unet import *
+# from nets.pasnet.pspnet import PSPNET
 from torchcrf import CRF
 # from nets.unet3d.src.unet3d_bn import UNet3D_BN, UNet3D_ResBN, UNet3D_BN_SE, UNet3D_ResBN_SE
 # from nets.unet3d.unet3d_ln import UNet3D_LN
@@ -223,20 +223,14 @@ def main(args):
     # 初始化模型
     if args.model == 'unet3d':
         model = UNET3D(4, 4, [32, 64, 128, 256])
-    elif args.model == 'f_cac_unet3d':
-        model = F_CAC_UNET3D(4, 4, [32, 64, 128, 256])
-    elif args.model == 'up_cac_unet3d':
-        model = Up_CAC_UNET3D(4, 4, [32, 64, 128, 256])
-    elif args.model == 'down_cac_unet3d':
-        model = Down_CAC_UNET3D(4, 4, [32, 64, 128, 256])
-    elif args.model == 'res_unet3d':
-        model = Res_UNET3D(4, 4, [32, 64, 128, 256])
-    elif args.model == 'rid_unet3d':
-        model = RIA_UNET3D(4, 4, [16, 32, 64, 128, 256])
-    elif args.model == 'magic_unet3d':
-        model = Magic_UNET3D(in_channels=4, mid_channels=32, out_channels=4)
-    elif args.model == 'pspnet':
-        model = PSPNET(nn.Conv3d, nn.BatchNorm3d, nn.ReLU, 4, in_channel=4, mid_channels=128, out_channels=128, num_classes=4, img_size=128)
+    elif args.model == 'fm_unet3d_default':
+        model = FM_UNET3D(in_channels=4, out_channels=4, ec_dilation_flags=[False, False, False, False], dc_dilation_flags=[False, False, False, False])
+    elif args.model == 'fm_unet3d_res':
+        model = FM_UNET3D(in_channels=4, out_channels=4, ec_dilation_flags=[False, False, False, False], dc_dilation_flags=[False, False, False, False], residuals_flag=True)
+    elif args.model == 'fm_unet3d_dilation':
+        model = FM_UNET3D(in_channels=4, out_channels=4, ec_dilation_flags=[True, False, False, False], dc_dilation_flags=[True, False, False, False])
+    elif args.model == 'fm_unet3d_dilation_fusion':
+        model = FM_UNET3D(in_channels=4, out_channels=4, fusion=args.fusion_flag, ec_dilation_flags=[True, False, False, False], dc_dilation_flags=[True, False, False, False])
     else:
         raise ValueError(f"Invalid model name: {args.model}")
     

@@ -13,7 +13,7 @@ import torch.nn as nn
 from torch.nn import functional as F
 # from Attentions3D import *
 # from Modules.Attentions3D import *
-# from nets.unet3d.Modules.Attentions3D import *
+from nets.unet3d.Modules.Attentions3D import *
 
 class CBR_Block_3x3(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size=3, padding=1):
@@ -21,11 +21,28 @@ class CBR_Block_3x3(nn.Module):
         self.cbr_conv = nn.Sequential(
             nn.Conv3d(in_channels, out_channels, kernel_size=kernel_size, padding=padding),
             nn.BatchNorm3d(out_channels),
-            nn.ReLU(inplace=True),
+            nn.ReLU(),
         )
     def forward(self, x):
         return self.cbr_conv(x)
+    
+class CBR_Block_5x5(CBR_Block_3x3):
+    def __init__(self, in_channels:int, out_channels:int):
+        super(CBR_Block_5x5, self).__init__(in_channels, out_channels)
+        self.conv[0] = nn.Conv3d(in_channels, out_channels, kernel_size=5, padding=2, dilation=1, bias=False)
 
+
+class DoubleCBR_Block_3x3(nn.Module):
+    def __init__(self, in_channels, out_channels):
+        super().__init__()
+        self.double_cbr = nn.Sequential(
+            CBR_Block_3x3(in_channels, out_channels),
+            CBR_Block_3x3(out_channels, out_channels),
+        )
+
+    def forward(self, x):
+        return self.double_cbr(x)
+    
 class DownSample(nn.Module):
     def __init__(self):
         super().__init__()
@@ -45,7 +62,7 @@ class UpSample(nn.Module):
             self.up_sample = nn.Sequential(
                 nn.ConvTranspose3d(in_channels=in_channels, out_channels=in_channels, kernel_size=4, stride=2, padding=1),
                 nn.BatchNorm3d(in_channels),
-                nn.ReLU(inplace=True),
+                nn.ReLU(),
                 nn.Conv3d(in_channels, out_channels, kernel_size=1)
                 )
         
@@ -64,7 +81,190 @@ class ResAttCBR_3x3(nn.Module):
         self.conv = nn.Conv3d(in_channels, out_channels, kernel_size=1)
     def forward(self, x):
         return F.relu(self.conv(x) + self.double_cbr(x))
+    
+class EncoderBottleneck(nn.Module):
+    def __init__(self, in_channels, out_channels, kernel_size, padding, stride, dilation=False, cbam=False, residual=False):
+        super().__init__()
+        self.use_cbam = cbam
+        self.residual = residual
+        if dilation:
+            self.residual = nn.Sequential(
+                # nn.Conv3d(in_channels, out_channels, kernel_size=3, padding=1, dilation=1),
+                # nn.BatchNorm3d(out_channels),
+                # nn.ReLU(),
+                nn.Conv3d(in_channels, in_channels, kernel_size=3, padding=2, dilation=2),
+                nn.BatchNorm3d(in_channels),
+                nn.ReLU(),
+                nn.Conv3d(in_channels, out_channels, kernel_size=1) 
+            )
+        else:
+            self.residual = nn.Sequential( 
+                nn.Conv3d(in_channels, out_channels, kernel_size=kernel_size, padding=padding, stride=stride),
+                nn.BatchNorm3d(out_channels),
+                nn.ReLU(),
+                nn.Conv3d(out_channels, out_channels, kernel_size=kernel_size, padding=padding, stride=stride),
+                nn.BatchNorm3d(out_channels),
+            )
+        self.shortcut = nn.Sequential(
+            nn.Conv3d(in_channels, out_channels, kernel_size=1),
+            nn.BatchNorm3d(out_channels),
+        )
+        self.relu = nn.ReLU()
 
+        self.cbam = CBAM(in_channels, ratio=in_channels//2, kernel_size=3)
+
+    def forward(self, x):
+        if self.use_cbam:
+            x = self.cbam(x)
+        residual_out = self.residual(x)
+
+        if self.residual:     
+            shortcut_out = self.shortcut(x)
+            out = self.relu(residual_out + shortcut_out)
+        else:
+            out = self.relu(residual_out)
+        return out
+
+class DecoderBottleneck(nn.Module):
+    def __init__(self, in_channels, out_channels, kernel_size, padding, stride, dilation=False, cbam=False, residual=False):
+        super().__init__()
+        self.use_cbam = cbam
+        self.use_residual = residual
+        if dilation:
+            self.residual = nn.Sequential(
+                nn.Conv3d(in_channels, in_channels, kernel_size=3, padding=1, dilation=1),
+                nn.BatchNorm3d(in_channels),
+                nn.ReLU(),
+                nn.Conv3d(in_channels, in_channels, kernel_size=3, padding=2, dilation=2),
+                nn.BatchNorm3d(in_channels),
+                nn.ReLU(),
+                # nn.Conv3d(in_channels, in_channels, kernel_size=3, padding=3, dilation=3),
+                # nn.BatchNorm3d(in_channels),
+                nn.ReLU(),
+                nn.Conv3d(in_channels, out_channels, kernel_size=1)
+            )
+        else:
+            self.residual = nn.Sequential(
+                nn.Conv3d(in_channels, out_channels, kernel_size=kernel_size, padding=padding, stride=stride),
+                # nn.Conv3d(in_channels, out_channels, kernel_size=1, stride=1),
+                nn.BatchNorm3d(out_channels),
+                nn.ReLU(),
+                nn.Conv3d(out_channels, out_channels, kernel_size=kernel_size, padding=padding, stride=stride),
+                nn.BatchNorm3d(out_channels),
+            )
+        
+        self.shortcut = nn.Sequential(
+            nn.Conv3d(in_channels, out_channels, kernel_size=1),
+            nn.BatchNorm3d(out_channels),
+        )
+        self.cbam = CBAM(in_channels, ratio=in_channels//2, kernel_size=3)
+
+        self.relu = nn.ReLU()
+
+    def forward(self, x, skipped=None):
+        if skipped is not None:
+            x = torch.cat([x, skipped], dim=1)
+            if self.use_cbam:
+                x = self.cbam(x)
+        residual_out = self.residual(x)
+
+        if self.use_residual:
+            shortcut_out = self.shortcut(x)
+            out = self.relu(residual_out + shortcut_out)
+        else:
+            out = self.relu(residual_out)
+
+        return out
+
+class Encoder(nn.Module):
+    def __init__(self, in_channels=4, dilation_flags=[False, False, False, False]):
+        super().__init__()
+        self.DownSample = nn.MaxPool3d(kernel_size=2, stride=2)
+
+        self.encoder1 = EncoderBottleneck(in_channels, 32, 5, 2, 1, dilation_flags[0])     
+        self.encoder2 = EncoderBottleneck(32, 64, 5, 2, 1, dilation_flags[1])
+        self.encoder3 = EncoderBottleneck(64, 128, 3, 1, 1, dilation_flags[2])
+        self.encoder4 = EncoderBottleneck(128, 256, 3, 1, 1, dilation_flags[3])
+        self.dropout = nn.Dropout(p=0.2)
+
+    def forward(self, x):
+        out1 = self.encoder1(x)
+        out = self.DownSample(out1)
+
+        out2 = self.encoder2(out)
+        out = self.DownSample(out2)
+
+        out3 = self.encoder3(out)
+        out = self.DownSample(out3)
+
+        out4 = self.encoder4(out)
+        out = self.DownSample(out4)
+        
+        out = self.dropout(out)
+
+        skip_connections = [out1, out2, out3, out4] # 32x128 64x64 128x32 256x16
+
+        return out, skip_connections
+
+class Decoder(nn.Module):
+    def __init__(self, out_channels, dilation_flags=[False, False, False, False], fusion=False):
+        super().__init__()
+        self.fusion = fusion
+
+        self.upsample1 = nn.Sequential(
+            nn.ConvTranspose3d(256, 256, kernel_size=4, stride=2, padding=1),
+            CBR_Block_3x3(256, 256)
+        )
+        self.decoder1 = DecoderBottleneck(512, 128, 3, 1, 1, dilation_flags[0])
+
+        self.upsample2 = nn.Sequential(
+            nn.ConvTranspose3d(128, 128, kernel_size=4, stride=2, padding=1),
+            CBR_Block_3x3(128, 128)
+            )
+        self.decoder2 = DecoderBottleneck(256, 64, 3, 1, 1, dilation_flags[1])
+
+        self.upsample3 = nn.Sequential(
+            nn.ConvTranspose3d(64, 64, kernel_size=4, stride=2, padding=1),
+            CBR_Block_5x5(64, 64)
+            )
+        self.decoder3 = DecoderBottleneck(128, 32, 3, 1, 1, dilation_flags[2])
+
+        self.upsample4 = nn.Sequential(
+            nn.ConvTranspose3d(32, 32, kernel_size=4, stride=2, padding=1),
+            CBR_Block_5x5(32, 32)
+            )
+
+        self.decoder4 = DecoderBottleneck(64, 32, 5, 2, 1, dilation_flags[3])
+        
+        self.FusionMagic = FusionMagic_v2(32, 32)
+        self.dropout = nn.Dropout(p=0.2)
+        self.out_conv = nn.Sequential(
+            CBR_Block_3x3(32, 32),
+            nn.Conv3d(32, out_channels, kernel_size=1)
+            )
+
+    def forward(self, x, skip_connections):
+        
+        skip_connections = skip_connections[::-1]
+
+        out = self.upsample1(x) # 256x8 --> 256 x16
+        out1 = self.decoder1(out, skip_connections[0]) # (256 + 256)x16 --> 128x32
+
+        out = self.upsample2(out1) 
+        out2 = self.decoder2(out, skip_connections[1]) # (128 + 128)x32 --> 64x64
+
+        out = self.upsample3(out2)
+        out3 = self.decoder3(out, skip_connections[2]) # (64 + 64)x64 --> 32x128
+
+        if self.fusion:
+            out3 = self.FusionMagic([out1, out2, out3])
+
+        out = self.upsample4(out3)
+        out4 = self.decoder4(out, skip_connections[3]) # (32 + 32)x128 --> 32x256
+        
+        out = self.out_conv(out4)
+
+        return out
 
 class Inception_Block(nn.Module):
     def __init__(self, in_channels, out_channels):
@@ -72,7 +272,7 @@ class Inception_Block(nn.Module):
         self.branch1 = nn.Sequential(
             nn.Conv3d(in_channels, out_channels, kernel_size=1),
             nn.BatchNorm3d(out_channels),
-            # nn.ReLU(inplace=True),
+            # nn.ReLU(),
         )
         self.branch2 = nn.Sequential(
             nn.Conv3d(in_channels, out_channels, kernel_size=1),
@@ -83,7 +283,7 @@ class Inception_Block(nn.Module):
         self.branch3 = nn.Sequential(
             nn.Conv3d(in_channels, out_channels, kernel_size=1),
             nn.BatchNorm3d(out_channels),
-            # nn.ReLU(inplace=True),
+            # nn.ReLU(),
             nn.Conv3d(out_channels, out_channels, kernel_size=3, dilation=2, padding=2), # 膨胀卷积，膨胀率为2
             nn.BatchNorm3d(out_channels),
         )
@@ -116,7 +316,7 @@ class D_Inception_Block(nn.Module):
         self.branch1 = nn.Sequential(
             nn.Conv3d(in_channels, out_channels, kernel_size=1),
             nn.BatchNorm3d(out_channels),
-            nn.ReLU(inplace=True),
+            nn.ReLU(),
         )
         self.branch2 = nn.Sequential(
             nn.Conv3d(in_channels, out_channels, kernel_size=1),
@@ -127,25 +327,25 @@ class D_Inception_Block(nn.Module):
         self.branch3 = nn.Sequential(
             nn.Conv3d(in_channels, out_channels, kernel_size=1),
             nn.BatchNorm3d(out_channels),
-            nn.ReLU(inplace=True),
+            nn.ReLU(),
             nn.Conv3d(out_channels, out_channels, kernel_size=3, dilation=1, padding=1), # 膨胀卷积，膨胀率为2
             nn.BatchNorm3d(out_channels),
             nn.Conv3d(out_channels, out_channels, kernel_size=3, dilation=2, padding=2), # 膨胀卷积，膨胀率为2
             nn.BatchNorm3d(out_channels),
             nn.Conv3d(out_channels, out_channels, kernel_size=3, dilation=3, padding=3), # 膨胀卷积，膨胀率为2
             nn.BatchNorm3d(out_channels),
-            nn.ReLU(inplace=True),
+            nn.ReLU(),
         )
         self.branch4 = nn.Sequential(
             nn.Conv3d(in_channels, out_channels, kernel_size=1),
             nn.BatchNorm3d(out_channels),
-            nn.ReLU(inplace=True),
+            nn.ReLU(),
             nn.MaxPool3d(kernel_size=3, stride=1, padding=1),
         )
         self.branch5 = nn.Sequential(
             nn.Conv3d(in_channels, out_channels, kernel_size=1),
             nn.BatchNorm3d(out_channels),
-            nn.ReLU(inplace=True),
+            nn.ReLU(),
             nn.AvgPool3d(kernel_size=3, stride=1, padding=1),
         )
         self.out_conv = nn.Conv3d(out_channels * 5, out_channels, kernel_size=1)
@@ -161,92 +361,13 @@ class D_Inception_Block(nn.Module):
         out = F.relu(self.out_conv(out))
         return out
 
-class EncoderBottleneck(nn.Module):
-    def __init__(self, in_channels, out_channels):
-        super().__init__()
-        self.residual = nn.Sequential( 
-            nn.Conv3d(in_channels, out_channels, kernel_size=3, padding=1),
-            nn.BatchNorm3d(out_channels),
-            nn.ReLU(inplace=True),
-            nn.Conv3d(out_channels, out_channels, kernel_size=3, padding=1),
-            nn.BatchNorm3d(out_channels),
-            nn.ReLU(inplace=True),
-            nn.Conv3d(out_channels, out_channels, kernel_size=1),
-            nn.BatchNorm3d(out_channels),
-        )
-        self.shortcut = nn.Sequential(
-            nn.Conv3d(in_channels, out_channels, kernel_size=1),
-            nn.BatchNorm3d(out_channels),
-        )
-        self.downsample = nn.MaxPool3d(kernel_size=2, stride=2)
-        self.relu = nn.ReLU(inplace=True)
-
-    def forward(self, x):
-        residual_out = self.residual(x)
-        shortcut_out = self.shortcut(x)
-        out = self.relu(residual_out + shortcut_out)
-        return self.downsample(out)
-    
-
-class DecoderBottleneck(nn.Module):
-    def __init__(self, in_channels, out_channels, scale_factor=2, upsample=True, dilation=False):
-        super().__init__()
-        if upsample:
-            self.upsample = nn.Upsample(scale_factor=scale_factor, mode='trilinear')
-        else:
-            self.upsample = nn.ConvTranspose3d(in_channels//2, in_channels//2, kernel_size=4, stride=2, padding=1)
-        
-        if dilation:
-            self.residual = nn.Sequential(
-                nn.Conv3d(in_channels, in_channels, kernel_size=3, padding=1, dilation=1),
-                nn.BatchNorm3d(in_channels),
-                nn.ReLU(inplace=True),
-                nn.Conv3d(in_channels, in_channels, kernel_size=3, padding=2, dilation=2),
-                nn.BatchNorm3d(in_channels),
-                nn.ReLU(inplace=True),
-                nn.Conv3d(in_channels, in_channels, kernel_size=3, padding=3, dilation=3),
-                nn.BatchNorm3d(in_channels),
-                nn.ReLU(inplace=True),
-                nn.Conv3d(in_channels, out_channels, kernel_size=1)
-            )
-        else:
-            self.residual = nn.Sequential(
-                nn.Conv3d(in_channels, out_channels, kernel_size=3, padding=1),
-                nn.BatchNorm3d(out_channels),
-                nn.ReLU(inplace=True),
-                nn.Conv3d(out_channels, out_channels, kernel_size=3, padding=1),
-                nn.BatchNorm3d(out_channels),
-                nn.ReLU(inplace=True),
-                nn.Conv3d(out_channels, out_channels, kernel_size=1),
-                nn.BatchNorm3d(out_channels),
-            )
-        
-        self.shortcut = nn.Sequential(
-            nn.Conv3d(in_channels, out_channels, kernel_size=1),
-            nn.BatchNorm3d(out_channels),
-        )
-        self.cbam = CBAM(in_channels//2)
-
-        self.relu = nn.ReLU(inplace=True)
-
-    def forward(self, x, skipped=None):
-        if skipped is not None:
-            assert x.shape == skipped.shape, "Skipped tensor must be provided for DecoderBottleneck"
-            x = torch.cat([x, skipped], dim=1)
-            
-        residual_out = self.residual(x)
-        shortcut_out = self.shortcut(x)
-        out = self.relu(residual_out + shortcut_out)
-        return out
-    
-
 class MLP(nn.Module):
     def __init__(self, in_channels, out_channels, reduction_ratio=4, num_hidden_layers=1):
         super(MLP, self).__init__()
         hidden_dim = in_channels // reduction_ratio
-        hidden_layers_list = [nn.Conv3d(hidden_dim, hidden_dim, kernel_size=1), nn.ReLU(inplace=True)] * num_hidden_layers
+        hidden_layers_list = [nn.Conv3d(hidden_dim, hidden_dim, kernel_size=1), nn.ReLU()] * num_hidden_layers
         self.input_layer = nn.Conv3d(in_channels, hidden_dim, kernel_size=1)
-        self.relu = nn.ReLU(inplace=True)
+        self.relu = nn.ReLU()
         self.hidden_layers = nn.Sequential(*hidden_layers_list)
         self.output_layer = nn.Conv3d(hidden_dim, out_channels, kernel_size=1)
 
@@ -272,6 +393,7 @@ class CAM(nn.Module):
         out = avgout + maxout
         return self.sigmoid(out)
 
+
 class FusionMagic(nn.Module):
     def __init__(self, in_channels, out_channels, dropout=0.2): # 32, 128
         super().__init__()
@@ -292,9 +414,9 @@ class FusionMagic(nn.Module):
 
         self.MLP = nn.Sequential(
             nn.Conv3d(in_channels=in_channels*7, out_channels=in_channels, kernel_size=1),
-            nn.ReLU(inplace=True),
+            nn.ReLU(),
             nn.Conv3d(in_channels=in_channels, out_channels=in_channels*7, kernel_size=1),
-            nn.ReLU(inplace=True)
+            nn.ReLU()
         )
         self.Conv1 = nn.Conv3d(in_channels*7, out_channels, kernel_size=1)
 
@@ -336,6 +458,7 @@ class FusionMagic(nn.Module):
         return out
 
 class FusionMagic_v2(nn.Module):
+    
     def __init__(self, in_channels, out_channels, dropout=0.2): # 输入128， 输出32
         super(FusionMagic_v2, self).__init__()
         # 分别对后两层的输入进行平均池化操作，得到每个通道的平均值
@@ -357,10 +480,10 @@ class FusionMagic_v2(nn.Module):
 
         self.cam_192 = CAM(in_channels*6)
 
-        self.mlp_192 = MLP(in_channels=in_channels*6, out_channels=in_channels*4)
+        self.mlp_192 = MLP(in_channels=in_channels*6, out_channels=in_channels*4, reduction_ratio=in_channels*6//2)
         self.layer_norm1 = nn.LayerNorm(normalized_shape=(in_channels*4, 1, 1, 1))
 
-        self.mlp_96 = MLP(in_channels=in_channels*3, out_channels=in_channels*2)
+        self.mlp_96 = MLP(in_channels=in_channels*3, out_channels=in_channels*2, reduction_ratio=in_channels*3//2)
         self.layer_norm2 = nn.LayerNorm(normalized_shape=(in_channels*2, 1, 1, 1))
 
         # self.mlp_288 = MLP(in_channels=in_channels*9, out_channels=in_channels*9)
@@ -391,7 +514,7 @@ class FusionMagic_v2(nn.Module):
         else:
             raise ValueError("Invalid pooling type")
         
-        out1 = torch.cat([x1, x2], dim=1) # 128 + 64 = 192
+        out1 = torch.cat([x1, x2], dim=1) # 128 + 64 = 192  # TODO: 下一步可以在cat之后, 进行切分成三个特征层，然后仿照qkv的方式，设计级联结构，然后再进行融合
         out1 = self.mlp_192(out1)
         out1 = self.layer_norm1(out1)
         out1 = self.sigmoid(out1)

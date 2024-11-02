@@ -60,10 +60,10 @@ def train_one_epoch(model, train_loader, scaler, optimizer, loss_function, devic
         vimage, mask = data[0].to(device), data[1].to(device)
         
         # 梯度清零
-        optimizer.zero_grad()
         
         with autocast(device_type='cuda'): # 混合精度训练
             # 前向传播 + 反向传播 + 优化
+            optimizer.zero_grad()
             predicted_mask = model(vimage)
             mean_loss, et_loss, tc_loss, wt_loss = loss_function(predicted_mask, mask)
         scaler.scale(mean_loss).backward()                           # 反向传播，只有训练模型时才需要
